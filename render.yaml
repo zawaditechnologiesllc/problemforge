@@ -1,0 +1,72 @@
+# Render Blueprint for ProblemForge
+# Deploys the FastAPI backend as a web service and the weekly patent
+# ingestion worker as a cron job. Connect this repo in the Render
+# dashboard ("New +" -> "Blueprint") and Render will read this file.
+#
+# All secrets are marked sync: false — Render will prompt you for their
+# values on first deploy. See DEPLOYMENT.md for where each value comes from.
+
+services:
+  - type: web
+    name: problemforge-api
+    runtime: python
+    rootDir: backend
+    plan: starter
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /healthz
+    autoDeploy: true
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: ENVIRONMENT
+        value: production
+      - key: FRONTEND_URL
+        sync: false # e.g. https://problemforge.vercel.app
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_JWT_SECRET
+        sync: false # optional — leave blank to verify tokens via the Supabase Auth API
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+      - key: STRIPE_PRICE_BUILDER
+        sync: false # Stripe Price ID for the $19/mo Builder plan
+      - key: STRIPE_PRICE_PRO
+        sync: false # Stripe Price ID for the $49/mo Pro plan
+      - key: LLM_API_KEY
+        sync: false # OpenRouter (or other OpenAI-compatible) API key
+      - key: EMBEDDINGS_API_KEY
+        sync: false # OpenAI-compatible embeddings key (optional; validator falls back to text search)
+      - key: USPTO_API_KEY
+        sync: false # PatentsView API key for the ingestion worker (optional)
+
+  # Weekly ingestion: pulls newly public-domain patents, translates them into
+  # blueprints with the LLM pipeline, generates embeddings, inserts rows.
+  # Cron jobs require a paid Render plan — the app works fine without this
+  # (seeded data + manual runs of `python -m worker.ingest`).
+  - type: cron
+    name: problemforge-ingestion
+    runtime: python
+    rootDir: backend
+    schedule: "0 6 * * 1" # Mondays 06:00 UTC
+    buildCommand: pip install -r requirements.txt
+    startCommand: python -m worker.ingest
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: LLM_API_KEY
+        sync: false
+      - key: EMBEDDINGS_API_KEY
+        sync: false
+      - key: USPTO_API_KEY
+        sync: false
