@@ -39,6 +39,8 @@ services:
         sync: false # Stripe Price ID for the $19/mo Builder plan
       - key: STRIPE_PRICE_PRO
         sync: false # Stripe Price ID for the $49/mo Pro plan
+      - key: STRIPE_PRICE_ENTERPRISE
+        sync: false # Stripe Price ID for the $150/mo Enterprise plan
       - key: LLM_API_KEY
         sync: false # OpenRouter (or other OpenAI-compatible) API key
       - key: EMBEDDINGS_API_KEY

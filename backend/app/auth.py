@@ -9,6 +9,7 @@ from fastapi import Depends, HTTPException, Request
 
 from .config import settings
 from .db import get_db
+from .services.usage import check_and_increment
 from .tiers import tier_config
 
 
@@ -105,6 +106,7 @@ def _maybe_reset_usage(profile: dict) -> dict:
                 {
                     "monthly_search_count": 0,
                     "monthly_validate_count": 0,
+                    "monthly_api_count": 0,
                     "usage_reset_at": datetime.now(timezone.utc).isoformat(),
                 }
             )
@@ -127,9 +129,15 @@ async def current_user_optional(request: Request) -> dict | None:
         profile = _load_profile(user_id)
         if not tier_config(profile["tier"])["api_access"]:
             raise HTTPException(
-                status_code=403, detail="API access requires the Pro plan"
+                status_code=403,
+                detail="API access requires the Pro or Enterprise plan",
             )
-        return {"user_id": user_id, "profile": profile, "via": "api_key"}
+        user = {"user_id": user_id, "profile": profile, "via": "api_key"}
+        # Every API-key request counts against the tier's monthly API quota
+        # (5,000/mo on Pro; unlimited on Enterprise). Web-session usage is
+        # metered per feature instead.
+        check_and_increment(user, "api_call")
+        return user
 
     auth_header = request.headers.get("authorization", "")
     if auth_header.lower().startswith("bearer "):

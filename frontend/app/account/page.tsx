@@ -44,8 +44,23 @@ function UsageBar({
 }: {
   label: string;
   used: number;
-  limit: number;
+  limit: number | null; // null = unlimited
 }) {
+  if (limit === null) {
+    return (
+      <div>
+        <div className="flex items-center justify-between text-sm">
+          <span className="text-muted">{label}</span>
+          <span className="font-medium">
+            {used.toLocaleString()} <span className="text-teal">/ Unlimited</span>
+          </span>
+        </div>
+        <div className="mt-2 h-2 overflow-hidden rounded-full bg-raised">
+          <div className="h-full w-full rounded-full bg-teal/30" />
+        </div>
+      </div>
+    );
+  }
   const pct = Math.min(100, Math.round((used / Math.max(1, limit)) * 100));
   return (
     <div>
@@ -220,6 +235,13 @@ function AccountContent() {
                     used={me.usage.validations_used}
                     limit={me.usage.validations_limit}
                   />
+                  {me.features.api_access && (
+                    <UsageBar
+                      label="API requests"
+                      used={me.usage.api_requests_used}
+                      limit={me.usage.api_requests_limit}
+                    />
+                  )}
                 </div>
                 <p className="mt-4 text-xs text-muted">
                   Resets in {daysUntilReset(me.usage.reset_at)} days.
@@ -309,13 +331,13 @@ function AccountContent() {
 
               {!me.features.api_access ? (
                 <div className="card border-accent/40 p-8 text-center">
-                  <p className="font-semibold">API access is a Pro feature</p>
+                  <p className="font-semibold">API access starts on the Pro plan</p>
                   <p className="mx-auto mt-2 max-w-md text-sm text-muted">
-                    Query blueprints and the validator programmatically with the
-                    REST API — $49/month on the Pro plan.
+                    Query blueprints and the validator programmatically — 5,000
+                    requests/month on Pro ($49), unlimited on Enterprise ($150).
                   </p>
                   <Link href="/pricing" className="btn-accent mt-5">
-                    Upgrade to Pro
+                    View Plans
                   </Link>
                 </div>
               ) : (
@@ -391,7 +413,9 @@ function AccountContent() {
                       ? "$0/month"
                       : me.tier === "builder"
                         ? "$19/month"
-                        : "$49/month"}
+                        : me.tier === "pro"
+                          ? "$49/month"
+                          : "$150/month"}
                   </span>
                 </div>
                 <div className="mt-5 flex flex-col gap-3 sm:flex-row">
@@ -412,13 +436,18 @@ function AccountContent() {
                       Manage billing & invoices
                     </button>
                   )}
-                  {me.tier !== "pro" && (
+                  {me.tier !== "enterprise" && (
                     <button
                       className="btn-accent"
                       disabled={busy === "upgrade"}
                       onClick={() =>
                         act("upgrade", async () => {
-                          const plan = me.tier === "free" ? "builder" : "pro";
+                          const plan =
+                            me.tier === "free"
+                              ? "builder"
+                              : me.tier === "builder"
+                                ? "pro"
+                                : "enterprise";
                           const { url } = await createCheckout(plan);
                           window.location.href = url;
                         })
@@ -427,7 +456,11 @@ function AccountContent() {
                       {busy === "upgrade" && (
                         <Loader2 className="animate-spin" size={15} />
                       )}
-                      {me.tier === "free" ? "Upgrade — from $19/mo" : "Upgrade to Pro — $49/mo"}
+                      {me.tier === "free"
+                        ? "Upgrade — from $19/mo"
+                        : me.tier === "builder"
+                          ? "Upgrade to Pro — $49/mo"
+                          : "Upgrade to Enterprise — $150/mo"}
                     </button>
                   )}
                 </div>
@@ -439,9 +472,9 @@ function AccountContent() {
 
               {me.features.export && (
                 <div className="card p-6">
-                  <h2 className="font-semibold">Bulk export</h2>
+                  <h2 className="font-semibold">Bulk data export</h2>
                   <p className="mt-1.5 text-sm text-muted">
-                    Download every public blueprint as CSV (Pro).
+                    Download every public blueprint as CSV (Enterprise).
                   </p>
                   <button
                     className="btn-ghost mt-4"

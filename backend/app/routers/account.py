@@ -29,12 +29,15 @@ async def me(user: dict = Depends(current_user_required)):
             "searches_limit": limits["searches_per_month"],
             "validations_used": profile.get("monthly_validate_count") or 0,
             "validations_limit": limits["validations_per_month"],
+            "api_requests_used": profile.get("monthly_api_count") or 0,
+            "api_requests_limit": limits["api_requests_per_month"],
             "reset_at": profile.get("usage_reset_at"),
         },
         "features": {
             "prompts_unlocked": limits["prompts_unlocked"],
             "api_access": limits["api_access"],
             "export": limits["export"],
+            "priority_support": limits["priority_support"],
         },
     }
 
@@ -95,7 +98,7 @@ async def create_api_key(
             status_code=402,
             detail={
                 "code": "upgrade_required",
-                "message": "API keys are available on the Pro plan.",
+                "message": "API keys are available on the Pro and Enterprise plans.",
             },
         )
     secret = f"pf_live_{secrets.token_urlsafe(24)}"

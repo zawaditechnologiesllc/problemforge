@@ -77,9 +77,10 @@ async def list_blueprints(
     query = query.order(column, desc=desc).range(offset, offset + limit - 1)
     result = query.execute()
 
-    # Searches are metered for signed-in users; anonymous browsing is fine
+    # Searches are metered for signed-in web sessions; API-key callers are
+    # already metered per request as api_call, and anonymous browsing is fine
     # because everything valuable (prompts, build plans) is gated separately.
-    if q and user:
+    if q and user and user.get("via") != "api_key":
         check_and_increment(user, "search")
 
     return {"items": result.data, "total": result.count or 0}
@@ -92,7 +93,7 @@ async def export_blueprints(user: dict = Depends(current_user_required)):
             status_code=402,
             detail={
                 "code": "upgrade_required",
-                "message": "Bulk export is available on the Pro plan.",
+                "message": "Bulk data export is available on the Enterprise plan.",
             },
         )
     rows = (

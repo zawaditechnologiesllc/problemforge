@@ -42,23 +42,25 @@ Expired patent → AI translation → Idea Blueprint → "Copy Master Prompt" �
 - **Auth** — Supabase email/password + Google OAuth
 - **Billing** — Stripe Checkout + Customer Portal + webhooks driving `profiles.tier`
 - **Account dashboard** — usage meters, saved blueprints, API keys, billing management
-- **Developer API** — `X-API-Key` auth against `/api/v1/*` (Pro tier), plus bulk CSV export
+- **Developer API** — `X-API-Key` auth against `/api/v1/*` (Pro: 5,000 req/mo; Enterprise: unlimited), bulk CSV export on Enterprise
 - Fully responsive — mobile and desktop layouts throughout
 
 ## Pricing tiers
 
-| | Free | **Builder — $19/mo** | Pro — $49/mo |
-|---|---|---|---|
-| Searches / month | 50 | 500 | 2,000 |
-| Human Problem + Expired Logic | ✅ | ✅ | ✅ |
-| Full build plans + master prompts | — | ✅ | ✅ |
-| Verified Public Domain filter | — | ✅ | ✅ |
-| Validator runs / month | 5 | 100 | 1,000 |
-| Developer API + keys | — | — | ✅ |
-| Bulk CSV export | — | — | ✅ |
+| | Free | **Builder — $19/mo** | Pro — $49/mo | Enterprise — $150/mo |
+|---|---|---|---|---|
+| Searches / month | 50 | 500 | 2,500 | Unlimited |
+| Human Problem + Expired Logic | ✅ | ✅ | ✅ | ✅ |
+| Full build plans + master prompts | — | ✅ | ✅ | ✅ |
+| Verified Public Domain filter | — | ✅ | ✅ | ✅ |
+| Validator runs / month | 5 | 100 | 500 | Unlimited |
+| Developer API + keys | — | — | 5,000 req/mo | Unlimited API calls |
+| Bulk data export (CSV) | — | — | — | ✅ |
+| Priority support | — | — | — | ✅ |
 
-All limits are enforced **server-side**. A $99 one-time Freedom-to-Operate
-report is stubbed on the pricing page as "coming soon."
+All limits are enforced **server-side** (`backend/app/tiers.py` is the single
+source of truth; API-key traffic is metered per request). A $99 one-time
+Freedom-to-Operate report is stubbed on the pricing page as "coming soon."
 
 ## Non-negotiable guardrails
 
@@ -94,8 +96,17 @@ Optional workers (need `LLM_API_KEY` / `EMBEDDINGS_API_KEY` / `USPTO_API_KEY`):
 
 ```bash
 cd backend
+python -m worker.check_sources         # diagnose data-source connectivity + keys
 python -m worker.backfill_embeddings   # embed the seed blueprints (enables vector Validator)
 python -m worker.ingest                # one ingestion pass from the USPTO
+```
+
+Backend tests (patent adapter, blueprint parser, tier ladder):
+
+```bash
+cd backend
+pip install -r requirements-dev.txt
+pytest
 ```
 
 ## Deploying

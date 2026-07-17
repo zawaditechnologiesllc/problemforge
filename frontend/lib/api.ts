@@ -119,7 +119,7 @@ export function getSaved() {
   return request<{ items: BlueprintSummary[] }>("/api/v1/account/saved");
 }
 
-export function createCheckout(plan: "builder" | "pro") {
+export function createCheckout(plan: "builder" | "pro" | "enterprise") {
   return request<{ url: string }>("/api/v1/billing/checkout", {
     method: "POST",
     body: { plan },

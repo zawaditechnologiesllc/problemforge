@@ -20,8 +20,9 @@ class Settings(BaseSettings):
     # Stripe
     stripe_secret_key: str = ""
     stripe_webhook_secret: str = ""
-    stripe_price_builder: str = ""  # $19/mo plan price id
-    stripe_price_pro: str = ""      # $49/mo plan price id
+    stripe_price_builder: str = ""     # $19/mo plan price id
+    stripe_price_pro: str = ""         # $49/mo plan price id
+    stripe_price_enterprise: str = ""  # $150/mo plan price id
 
     # LLM (OpenAI-compatible aggregator — OpenRouter/DeepInfra/SiliconFlow)
     llm_base_url: str = "https://openrouter.ai/api/v1"

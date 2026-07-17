@@ -42,16 +42,29 @@ const plans = [
     id: "pro",
     name: "Pro",
     price: 49,
-    tagline: "For power users and tool builders.",
+    tagline: "For power users building on the API.",
     features: [
-      "2,000 searches per month",
+      "2,500 searches per month",
       "Everything in Builder",
       "Developer REST API + API keys",
-      "Bulk CSV export of all blueprints",
-      "1,000 validator runs per month",
-      "Priority support",
+      "5,000 API requests per month",
+      "500 validator runs per month",
     ],
     cta: "Go Pro",
+  },
+  {
+    id: "enterprise",
+    name: "Enterprise",
+    price: 150,
+    tagline: "For teams and data products.",
+    features: [
+      "Everything in Pro",
+      "Unlimited API calls",
+      "Unlimited searches & validator runs",
+      "Bulk data export (CSV)",
+      "Priority support",
+    ],
+    cta: "Start Enterprise Plan",
   },
 ] as const;
 
@@ -92,7 +105,9 @@ export default function PricingPage() {
         router.push(`/login?next=/pricing`);
         return;
       }
-      const { url } = await createCheckout(planId as "builder" | "pro");
+      const { url } = await createCheckout(
+        planId as "builder" | "pro" | "enterprise"
+      );
       window.location.href = url;
     } catch (err: any) {
       setError(err?.message ?? "Could not start checkout. Try again.");
@@ -119,7 +134,7 @@ export default function PricingPage() {
         </div>
       )}
 
-      <div className="mt-12 grid gap-6 md:grid-cols-3">
+      <div className="mt-12 grid gap-6 md:grid-cols-2 xl:grid-cols-4">
         {plans.map((plan) => (
           <div
             key={plan.id}

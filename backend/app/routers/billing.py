@@ -17,13 +17,14 @@ router = APIRouter(prefix="/api/v1/billing", tags=["billing"])
 
 
 class CheckoutRequest(BaseModel):
-    plan: str  # 'builder' | 'pro'
+    plan: str  # 'builder' | 'pro' | 'enterprise'
 
 
 def _price_for_plan(plan: str) -> str:
     prices = {
         "builder": settings.stripe_price_builder,
         "pro": settings.stripe_price_pro,
+        "enterprise": settings.stripe_price_enterprise,
     }
     price = prices.get(plan)
     if not price:
@@ -36,6 +37,8 @@ def _tier_for_price(price_id: str) -> str | None:
         return "builder"
     if price_id == settings.stripe_price_pro:
         return "pro"
+    if price_id == settings.stripe_price_enterprise:
+        return "enterprise"
     return None
 
 

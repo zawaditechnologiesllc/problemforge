@@ -46,7 +46,9 @@ async def validate_idea(
     user: dict | None = Depends(current_user_optional),
 ):
     if user:
-        check_and_increment(user, "validator_run")
+        # API-key callers are metered per request as api_call at auth time.
+        if user.get("via") != "api_key":
+            check_and_increment(user, "validator_run")
     else:
         _check_anon_limit(request)
 

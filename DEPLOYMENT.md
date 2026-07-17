@@ -28,9 +28,10 @@ Each step produces values the next one needs.
 
 ## 2. Stripe (products first, webhook last)
 
-1. **Products → Add product**, create two recurring monthly prices:
+1. **Products → Add product**, create three recurring monthly prices:
    - `ProblemForge Builder` — **$19/month** → copy Price ID → `STRIPE_PRICE_BUILDER`
    - `ProblemForge Pro` — **$49/month** → copy Price ID → `STRIPE_PRICE_PRO`
+   - `ProblemForge Enterprise` — **$150/month** → copy Price ID → `STRIPE_PRICE_ENTERPRISE`
 2. **Developers → API keys** → copy the Secret key → `STRIPE_SECRET_KEY`.
 3. (Webhook comes in step 5, after the backend URL exists.)
 
@@ -49,7 +50,7 @@ Each step produces values the next one needs.
    | `FRONTEND_URL` | your Vercel URL (set a placeholder now, update after step 4) |
    | `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_ANON_KEY` | from step 1 |
    | `SUPABASE_JWT_SECRET` | optional (see step 1) |
-   | `STRIPE_SECRET_KEY`, `STRIPE_PRICE_BUILDER`, `STRIPE_PRICE_PRO` | from step 2 |
+   | `STRIPE_SECRET_KEY`, `STRIPE_PRICE_BUILDER`, `STRIPE_PRICE_PRO`, `STRIPE_PRICE_ENTERPRISE` | from step 2 |
    | `STRIPE_WEBHOOK_SECRET` | placeholder for now — real value in step 5 |
    | `LLM_API_KEY` | OpenRouter key (only needed for ingestion) |
    | `EMBEDDINGS_API_KEY` | OpenAI-compatible key (enables the vector Validator; optional — text fallback works without it) |
@@ -93,6 +94,7 @@ From any machine with the backend env vars set (or Render's Shell tab):
 
 ```bash
 cd backend
+python -m worker.check_sources         # verify USPTO/LLM/embeddings/DB connectivity
 python -m worker.backfill_embeddings   # embed seed blueprints → vector Validator
 python -m worker.ingest                # first live USPTO ingestion pass
 ```
@@ -105,6 +107,8 @@ python -m worker.ingest                # first live USPTO ingestion pass
 - [ ] Blueprint detail: sections 3–4 locked when signed out
 - [ ] Sign up (email + Google), Account dashboard loads with Free badge
 - [ ] Validator returns matches (text fallback is fine pre-embeddings)
-- [ ] $19 and $49 checkout flows complete in Stripe test mode; tier updates
+- [ ] $19, $49, and $150 checkout flows complete in Stripe test mode; tier updates
 - [ ] Master prompt visible + copyable on a paid account
 - [ ] Pro account can create an API key and `curl -H "X-API-Key: pf_live_..." $API/api/v1/blueprints`
+- [ ] Enterprise account shows Unlimited usage bars and can download the CSV export
+- [ ] `python -m worker.check_sources` passes on Render (data-collection APIs live)

@@ -42,20 +42,23 @@ export interface ValidatorMatch {
 export interface Me {
   id: string;
   email: string | null;
-  tier: "free" | "builder" | "pro";
+  tier: "free" | "builder" | "pro" | "enterprise";
   tier_name: string;
   has_billing: boolean;
   usage: {
     searches_used: number;
-    searches_limit: number;
+    searches_limit: number | null; // null = unlimited
     validations_used: number;
-    validations_limit: number;
+    validations_limit: number | null;
+    api_requests_used: number;
+    api_requests_limit: number | null;
     reset_at: string;
   };
   features: {
     prompts_unlocked: boolean;
     api_access: boolean;
     export: boolean;
+    priority_support: boolean;
   };
 }
 

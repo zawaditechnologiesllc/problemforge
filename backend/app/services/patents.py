@@ -27,12 +27,15 @@ def _twenty_years_ago(days_window: int) -> tuple[date, date]:
 
 
 async def fetch_expired_candidates(
-    days_window: int = 7, limit: int = 100
+    days_window: int = 7,
+    limit: int = 100,
+    transport: httpx.AsyncBaseTransport | None = None,
 ) -> list[dict]:
     """Patents whose earliest filing date fell 20 years ago this week.
 
     These have aged out of the statutory patent term and are public domain.
-    Requires a free PatentsView API key (USPTO_API_KEY).
+    Requires a free PatentsView API key (USPTO_API_KEY). `transport` lets
+    tests inject an httpx.MockTransport.
     """
     if not settings.uspto_api_key:
         raise RuntimeError("USPTO_API_KEY is not configured")
@@ -44,7 +47,7 @@ async def fetch_expired_candidates(
             {"_lte": {"patent_earliest_application_date": hi.isoformat()}},
         ]
     }
-    async with httpx.AsyncClient(timeout=60) as client:
+    async with httpx.AsyncClient(timeout=60, transport=transport) as client:
         resp = await client.get(
             PATENTSVIEW_URL,
             headers={"X-Api-Key": settings.uspto_api_key},
