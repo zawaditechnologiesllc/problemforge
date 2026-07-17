@@ -41,12 +41,22 @@ services:
         sync: false # Stripe Price ID for the $49/mo Pro plan
       - key: STRIPE_PRICE_ENTERPRISE
         sync: false # Stripe Price ID for the $150/mo Enterprise plan
+      - key: STRIPE_PRICE_FTO
+        sync: false # Stripe Price ID for the $99 one-time Freedom-to-Operate report
       - key: LLM_API_KEY
         sync: false # OpenRouter (or other OpenAI-compatible) API key
       - key: EMBEDDINGS_API_KEY
         sync: false # OpenAI-compatible embeddings key (optional; validator falls back to text search)
       - key: USPTO_API_KEY
-        sync: false # PatentsView API key for the ingestion worker (optional)
+        sync: false # PatentsView API key (primary patent source)
+      - key: GOOGLE_SERVICE_ACCOUNT_JSON
+        sync: false # GCP service-account JSON for BigQuery public patents (optional source)
+      - key: LENS_API_KEY
+        sync: false # Lens.org API token (optional source)
+      - key: EPO_OPS_KEY
+        sync: false # EPO OPS consumer key (optional source)
+      - key: EPO_OPS_SECRET
+        sync: false # EPO OPS consumer secret (optional source)
 
   # Weekly ingestion: pulls newly public-domain patents, translates them into
   # blueprints with the LLM pipeline, generates embeddings, inserts rows.
@@ -71,4 +81,12 @@ services:
       - key: EMBEDDINGS_API_KEY
         sync: false
       - key: USPTO_API_KEY
+        sync: false
+      - key: GOOGLE_SERVICE_ACCOUNT_JSON
+        sync: false
+      - key: LENS_API_KEY
+        sync: false
+      - key: EPO_OPS_KEY
+        sync: false
+      - key: EPO_OPS_SECRET
         sync: false

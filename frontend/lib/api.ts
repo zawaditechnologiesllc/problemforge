@@ -3,6 +3,7 @@ import type {
   ApiKey,
   BlueprintDetail,
   BlueprintSummary,
+  FtoReport,
   Me,
   ValidatorMatch,
 } from "@/lib/types";
@@ -128,6 +129,30 @@ export function createCheckout(plan: "builder" | "pro" | "enterprise") {
 
 export function openPortal() {
   return request<{ url: string }>("/api/v1/billing/portal", { method: "POST" });
+}
+
+export function ftoCheckout(body: {
+  patent_number?: string;
+  blueprint_id?: string;
+}) {
+  return request<{ url: string; report_id: string }>("/api/v1/fto/checkout", {
+    method: "POST",
+    body,
+  });
+}
+
+export function listFtoReports() {
+  return request<{ items: FtoReport[] }>("/api/v1/fto/reports");
+}
+
+export function getFtoDownload(id: string) {
+  return request<{ url: string }>(`/api/v1/fto/reports/${id}/download`);
+}
+
+export function retryFtoReport(id: string) {
+  return request<{ queued: boolean }>(`/api/v1/fto/reports/${id}/retry`, {
+    method: "POST",
+  });
 }
 
 export function listApiKeys() {

@@ -3,6 +3,7 @@
 import {
   Bookmark,
   BookmarkCheck,
+  FileText,
   Hammer,
   Loader2,
   MessageSquareWarning,
@@ -11,7 +12,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
   BuildabilityBadge,
@@ -22,6 +23,7 @@ import {
 import { CopyButton } from "@/components/CopyButton";
 import { LockedPanel } from "@/components/LockedPanel";
 import {
+  ftoCheckout,
   getBlueprint,
   getRelated,
   logPromptCopy,
@@ -79,11 +81,14 @@ function BuildPlan({ text }: { text: string }) {
 
 export default function BlueprintPage() {
   const { id } = useParams<{ id: string }>();
+  const router = useRouter();
   const [blueprint, setBlueprint] = useState<BlueprintDetail | null>(null);
   const [related, setRelated] = useState<BlueprintSummary[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [signedIn, setSignedIn] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [ftoBusy, setFtoBusy] = useState(false);
+  const [ftoError, setFtoError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -98,6 +103,23 @@ export default function BlueprintPage() {
       .then(({ data }) => setSignedIn(!!data.session))
       .catch(() => setSignedIn(false));
   }, [id]);
+
+  async function orderFto() {
+    if (!blueprint || ftoBusy) return;
+    if (!signedIn) {
+      router.push(`/login?next=/blueprint/${blueprint.id}`);
+      return;
+    }
+    setFtoBusy(true);
+    setFtoError(null);
+    try {
+      const { url } = await ftoCheckout({ blueprint_id: blueprint.id });
+      window.location.href = url;
+    } catch (err: any) {
+      setFtoError(err?.message ?? "Could not start checkout");
+      setFtoBusy(false);
+    }
+  }
 
   async function toggleSave() {
     if (!blueprint || saving) return;
@@ -172,6 +194,27 @@ export default function BlueprintPage() {
           <p className="mt-2 text-xs text-muted/80">
             Status: {blueprint.patent.legal_status}
           </p>
+        )}
+        {blueprint.patent_number && (
+          <div className="mt-4">
+            <button
+              onClick={orderFto}
+              disabled={ftoBusy}
+              className="btn-ghost border-teal/40 text-teal hover:border-teal"
+            >
+              {ftoBusy ? (
+                <Loader2 className="animate-spin" size={15} />
+              ) : (
+                <FileText size={15} />
+              )}
+              Freedom-to-Operate Report — $99
+            </button>
+            <p className="mt-1.5 text-xs text-muted/80">
+              PDF re-verification of expired status. AI-generated informational
+              summary, not legal advice.
+            </p>
+            {ftoError && <p className="mt-1 text-xs text-red-300">{ftoError}</p>}
+          </div>
         )}
       </div>
 

@@ -191,12 +191,13 @@ export default function PricingPage() {
           </h3>
           <p className="mt-1 text-sm leading-relaxed text-muted">
             A PDF report re-verifying a patent&apos;s expired status before you
-            build on it — an AI-generated informational summary, not legal
-            advice. Coming soon.
+            build on it: statutory-term math, recorded legal status, and a live
+            USPTO re-check. An AI-generated informational summary, not legal
+            advice. Order from any blueprint page or your account dashboard.
           </p>
         </div>
-        <Link href="/signup" className="btn-ghost flex-none">
-          Join the waitlist
+        <Link href="/account" className="btn-ghost flex-none">
+          Order a Report
         </Link>
       </div>
 

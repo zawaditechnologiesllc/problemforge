@@ -62,6 +62,16 @@ export interface Me {
   };
 }
 
+export interface FtoReport {
+  id: string;
+  patent_number: string;
+  blueprint_id: string | null;
+  status: "pending_payment" | "queued" | "processing" | "ready" | "failed";
+  error: string | null;
+  created_at: string;
+  completed_at: string | null;
+}
+
 export interface ApiKey {
   id: string;
   name: string;

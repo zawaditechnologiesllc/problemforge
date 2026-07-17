@@ -23,15 +23,31 @@ Expired patent → AI translation → Idea Blueprint → "Copy Master Prompt" �
 
 ```
 [Weekly cron worker]
-  → USPTO/PatentsView adapter (filters: filed ≥20y ago OR expired for non-payment)
+  → Patent source adapters (all behind one interface, auto-enabled by env creds):
+      USPTO/PatentsView · Google Patents BigQuery · Lens.org · EPO OPS
   → raw_patents  (hard public-domain gate: Postgres trigger)
   → LLM translation (DeepSeek via OpenRouter) → 4-section blueprint
   → embeddings (pgvector) → blueprints table
                                   │
-        [Next.js on Vercel] ⇄ [FastAPI on Render] ⇄ [Supabase Postgres + Auth]
+        [Next.js on Vercel] ⇄ [FastAPI on Render] ⇄ [Supabase Postgres + Auth + Storage]
                                   │
                           [Stripe Checkout/Portal/Webhooks]
+                          (subscriptions + $99 one-time FTO reports → PDF)
 ```
+
+### Patent data sources
+
+| Source | Module | Credentials (env) |
+|---|---|---|
+| USPTO (PatentsView) — primary | `patent_sources/uspto.py` | `USPTO_API_KEY` ([free key](https://patentsview.org/apis/keyrequest)) |
+| Google Patents Public Data (BigQuery) | `patent_sources/bigquery.py` | `GOOGLE_SERVICE_ACCOUNT_JSON` (BigQuery Job User role) |
+| Lens.org | `patent_sources/lens.py` | `LENS_API_KEY` |
+| EPO Open Patent Services | `patent_sources/epo.py` | `EPO_OPS_KEY` + `EPO_OPS_SECRET` |
+
+Each source implements the same `PatentSource` interface and returns the same
+normalized shape; ingestion iterates every configured source and dedupes on
+patent number. A source with no credentials is skipped. All candidates pass
+the app-level public-domain check **and** the database trigger gate.
 
 ## Features
 
@@ -59,8 +75,19 @@ Expired patent → AI translation → Idea Blueprint → "Copy Master Prompt" �
 | Priority support | — | — | — | ✅ |
 
 All limits are enforced **server-side** (`backend/app/tiers.py` is the single
-source of truth; API-key traffic is metered per request). A $99 one-time
-Freedom-to-Operate report is stubbed on the pricing page as "coming soon."
+source of truth; API-key traffic is metered per request).
+
+### Freedom-to-Operate reports ($99 one-time)
+
+Fully implemented: order from any blueprint page or the account dashboard →
+Stripe Checkout (mode=payment) → the webhook queues an async job that
+re-verifies the patent's expired status (statutory-term math + recorded legal
+status + a live USPTO lookup), adds an LLM plain-language analysis, renders a
+PDF, and stores it in a **private** Supabase Storage bucket. Users download
+via short-lived signed URLs; status is tracked
+(queued → processing → ready/failed with retry). Every report carries the
+required disclaimer: an AI-generated informational summary, **not legal
+advice**.
 
 ## Non-negotiable guardrails
 
@@ -70,7 +97,26 @@ Freedom-to-Operate report is stubbed on the pricing page as "coming soon."
 2. LLM and Stripe secrets live only in backend env vars — never client-side.
 3. Tier gating happens in the API: free/anonymous responses simply omit
    `build_plan` and `master_prompt`.
-4. Blueprint content is informational, not legal advice, and the UI says so.
+4. Blueprint content and FTO reports are informational, not legal advice, and
+   both the UI and every generated PDF say so.
+
+## Security posture
+
+- **Payments:** Stripe Checkout/Portal only — no card data touches the app;
+  webhooks are signature-verified and idempotent; prices are mapped
+  server-side (the client never chooses an amount).
+- **Auth:** Supabase JWTs verified server-side (HS256 secret or Auth API);
+  API keys stored as SHA-256 hashes with one-time plaintext display and
+  revocation; per-request metering.
+- **Database:** RLS on every table; the browser only ever holds the anon key;
+  the service-role key exists only on the backend.
+- **API:** per-IP rate limiting (120 req/min) + tier quotas; security headers
+  (HSTS, nosniff, frame-deny, referrer/permissions policy) on both the
+  FastAPI service and the Next.js app; CORS restricted to the frontend origin.
+- **Storage:** FTO PDFs live in a private bucket, served via signed URLs that
+  expire in 1 hour.
+- **Data purity:** locked content (build plans, master prompts) never leaves
+  the server for unentitled users.
 
 ## Local development
 
@@ -92,16 +138,17 @@ cp .env.example .env.local   # point NEXT_PUBLIC_API_URL at http://localhost:800
 npm run dev
 ```
 
-Optional workers (need `LLM_API_KEY` / `EMBEDDINGS_API_KEY` / `USPTO_API_KEY`):
+Optional workers (need at least one patent-source credential, plus
+`LLM_API_KEY` / `EMBEDDINGS_API_KEY` for translation/vectors):
 
 ```bash
 cd backend
-python -m worker.check_sources         # diagnose data-source connectivity + keys
+python -m worker.check_sources         # live-diagnose all 4 sources + LLM + Stripe + DB
 python -m worker.backfill_embeddings   # embed the seed blueprints (enables vector Validator)
-python -m worker.ingest                # one ingestion pass from the USPTO
+python -m worker.ingest                # one ingestion pass across all configured sources
 ```
 
-Backend tests (patent adapter, blueprint parser, tier ladder):
+Backend tests (all 4 source adapters, FTO verification + PDF, parser, tiers):
 
 ```bash
 cd backend

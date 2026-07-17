@@ -3,6 +3,7 @@
 import {
   Bookmark,
   CreditCard,
+  FileText,
   KeyRound,
   LayoutDashboard,
   Loader2,
@@ -14,6 +15,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useState } from "react";
 import { BlueprintCard } from "@/components/BlueprintCard";
+import { FtoPanel } from "@/components/FtoPanel";
 import {
   createApiKey,
   createCheckout,
@@ -28,11 +30,12 @@ import { getSupabase } from "@/lib/supabase/client";
 import type { ApiKey, BlueprintSummary, Me } from "@/lib/types";
 import clsx from "clsx";
 
-type Tab = "dashboard" | "saved" | "keys" | "billing";
+type Tab = "dashboard" | "saved" | "fto" | "keys" | "billing";
 
 const tabs: { id: Tab; label: string; icon: LucideIcon }[] = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
   { id: "saved", label: "Saved Blueprints", icon: Bookmark },
+  { id: "fto", label: "FTO Reports", icon: FileText },
   { id: "keys", label: "API Keys", icon: KeyRound },
   { id: "billing", label: "Billing", icon: CreditCard },
 ];
@@ -92,8 +95,9 @@ function AccountContent() {
   const router = useRouter();
   const params = useSearchParams();
   const checkoutSuccess = params.get("checkout") === "success";
+  const ftoSuccess = params.get("fto") === "success";
 
-  const [tab, setTab] = useState<Tab>("dashboard");
+  const [tab, setTab] = useState<Tab>(ftoSuccess ? "fto" : "dashboard");
   const [me, setMe] = useState<Me | null>(null);
   const [saved, setSaved] = useState<BlueprintSummary[]>([]);
   const [keys, setKeys] = useState<ApiKey[]>([]);
@@ -306,6 +310,8 @@ function AccountContent() {
               )}
             </div>
           )}
+
+          {tab === "fto" && <FtoPanel justPaid={ftoSuccess} />}
 
           {tab === "keys" && (
             <div className="space-y-6">

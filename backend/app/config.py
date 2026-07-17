@@ -23,6 +23,7 @@ class Settings(BaseSettings):
     stripe_price_builder: str = ""     # $19/mo plan price id
     stripe_price_pro: str = ""         # $49/mo plan price id
     stripe_price_enterprise: str = ""  # $150/mo plan price id
+    stripe_price_fto: str = ""         # $99 one-time Freedom-to-Operate report
 
     # LLM (OpenAI-compatible aggregator — OpenRouter/DeepInfra/SiliconFlow)
     llm_base_url: str = "https://openrouter.ai/api/v1"
@@ -35,8 +36,15 @@ class Settings(BaseSettings):
     embeddings_api_key: str = ""
     embedding_model: str = "text-embedding-3-small"  # 1536 dims, matches the schema
 
-    # Patent sources
-    uspto_api_key: str = ""  # PatentsView API key (free at patentsview.org)
+    # Patent sources — each activates automatically when its credentials exist
+    uspto_api_key: str = ""                # PatentsView API key (free at patentsview.org)
+    google_service_account_json: str = ""  # GCP service-account JSON (BigQuery public patents)
+    lens_api_key: str = ""                 # Lens.org API token
+    epo_ops_key: str = ""                  # EPO OPS consumer key
+    epo_ops_secret: str = ""               # EPO OPS consumer secret
+
+    # Freedom-to-Operate reports
+    fto_bucket: str = "fto-reports"  # private Supabase Storage bucket for PDFs
 
 
 settings = Settings()

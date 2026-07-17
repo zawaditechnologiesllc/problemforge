@@ -6,12 +6,14 @@ truth for profiles.tier.
 """
 
 import stripe
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 from pydantic import BaseModel
 
 from ..auth import current_user_required
 from ..config import settings
 from ..db import get_db
+from ..services import fto
+from ..services.usage import record_event
 
 router = APIRouter(prefix="/api/v1/billing", tags=["billing"])
 
@@ -109,7 +111,7 @@ def _user_id_for_customer(customer_id: str) -> str | None:
 
 
 @router.post("/webhook")
-async def stripe_webhook(request: Request):
+async def stripe_webhook(request: Request, background_tasks: BackgroundTasks):
     if not settings.stripe_webhook_secret:
         raise HTTPException(status_code=503, detail="Webhook secret not configured")
     stripe.api_key = settings.stripe_secret_key
@@ -125,7 +127,30 @@ async def stripe_webhook(request: Request):
     obj = event["data"]["object"]
 
     if event["type"] == "checkout.session.completed":
-        user_id = obj.get("client_reference_id") or (obj.get("metadata") or {}).get("user_id")
+        metadata = obj.get("metadata") or {}
+        user_id = obj.get("client_reference_id") or metadata.get("user_id")
+
+        # One-time Freedom-to-Operate report payment -> queue async generation.
+        if metadata.get("kind") == "fto" and metadata.get("fto_report_id"):
+            report_id = metadata["fto_report_id"]
+            updated = (
+                get_db()
+                .table("fto_reports")
+                .update({"status": "queued"})
+                .eq("id", report_id)
+                .eq("status", "pending_payment")  # idempotent on webhook retries
+                .execute()
+                .data
+            )
+            if updated:
+                if user_id and obj.get("customer"):
+                    get_db().table("profiles").update(
+                        {"stripe_customer_id": obj["customer"]}
+                    ).eq("id", user_id).is_("stripe_customer_id", "null").execute()
+                record_event(user_id, "fto_report")
+                background_tasks.add_task(fto.generate_report, report_id)
+            return {"received": True}
+
         subscription_id = obj.get("subscription")
         if user_id and subscription_id:
             subscription = stripe.Subscription.retrieve(subscription_id)

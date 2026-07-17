@@ -1,7 +1,8 @@
-"""Diagnostics for the data-collection pipeline.
+"""Diagnostics for the data-collection pipeline and billing configuration.
 
-Checks connectivity and configuration for every external data source the
-ingestion worker depends on, without writing anything to the database.
+Checks connectivity and configuration for every external dependency —
+all four patent sources (USPTO, BigQuery, Lens, EPO), the LLM, embeddings,
+Supabase, and Stripe prices — without writing anything to the database.
 
 Usage: python -m worker.check_sources
 Exit code 0 = nothing failed (warnings are okay), 1 = at least one failure.
@@ -13,38 +14,31 @@ import sys
 import httpx
 
 from app.config import settings
-from app.services import patents
+from app.services.patent_sources import all_sources
+
+_CREDENTIALS_HINT = {
+    "uspto": "set USPTO_API_KEY (free key: patentsview.org/apis/keyrequest)",
+    "bigquery": "set GOOGLE_SERVICE_ACCOUNT_JSON (GCP service account with BigQuery Job User)",
+    "lens": "set LENS_API_KEY (lens.org subscriptions page)",
+    "epo": "set EPO_OPS_KEY and EPO_OPS_SECRET (developers.epo.org)",
+}
 
 
-async def check_uspto() -> tuple[str, str]:
-    if settings.uspto_api_key:
-        try:
-            rows = await patents.fetch_expired_candidates(days_window=3, limit=5)
-            return (
-                "PASS",
-                f"PatentsView query OK — {len(rows)} candidate patents in a 3-day window 20 years back",
-            )
-        except httpx.HTTPStatusError as exc:
-            return ("FAIL", f"PatentsView rejected the request: HTTP {exc.response.status_code}")
-        except Exception as exc:
-            return ("FAIL", f"PatentsView query failed: {exc}")
-    # No key configured: still verify the endpoint is reachable.
+async def check_source(source) -> tuple[str, str]:
+    if not source.is_configured():
+        return ("WARN", f"not configured — {_CREDENTIALS_HINT[source.name]}")
     try:
-        response = httpx.get(patents.PATENTSVIEW_URL, timeout=15)
-        if response.status_code in (401, 403):
-            return (
-                "WARN",
-                f"endpoint reachable (HTTP {response.status_code}) but USPTO_API_KEY is not set — "
-                "request a free key at patentsview.org/apis/keyrequest",
-            )
-        return ("WARN", f"endpoint responded HTTP {response.status_code}; set USPTO_API_KEY for a real check")
+        rows = await source.fetch_expired_candidates(days_window=3, limit=3)
+        return ("PASS", f"live query OK — {len(rows)} candidates in a 3-day window 20 years back")
+    except httpx.HTTPStatusError as exc:
+        return ("FAIL", f"rejected the request: HTTP {exc.response.status_code}")
     except Exception as exc:
-        return ("FAIL", f"cannot reach PatentsView: {exc}")
+        return ("FAIL", f"query failed: {exc}")
 
 
 async def check_llm() -> tuple[str, str]:
     if not settings.llm_api_key:
-        return ("WARN", "LLM_API_KEY not set — ingestion translation will not run")
+        return ("WARN", "LLM_API_KEY not set — ingestion translation and FTO analysis degrade to fallbacks")
     try:
         async with httpx.AsyncClient(timeout=30) as client:
             response = await client.post(
@@ -91,22 +85,51 @@ def check_supabase() -> tuple[str, str]:
         return ("FAIL", f"database check failed: {exc}")
 
 
+def check_stripe() -> tuple[str, str]:
+    if not settings.stripe_secret_key:
+        return ("WARN", "STRIPE_SECRET_KEY not set — billing disabled")
+    try:
+        import stripe
+
+        stripe.api_key = settings.stripe_secret_key
+        prices = {
+            "builder": settings.stripe_price_builder,
+            "pro": settings.stripe_price_pro,
+            "enterprise": settings.stripe_price_enterprise,
+            "fto": settings.stripe_price_fto,
+        }
+        missing = [name for name, price in prices.items() if not price]
+        checked = 0
+        for name, price in prices.items():
+            if price:
+                stripe.Price.retrieve(price)
+                checked += 1
+        note = f"key valid, {checked} price(s) verified"
+        if missing:
+            return ("WARN", f"{note}; missing price ids: {', '.join(missing)}")
+        return ("PASS", note)
+    except Exception as exc:
+        return ("FAIL", f"Stripe check failed: {exc}")
+
+
 async def main_async() -> int:
-    checks = [
-        ("USPTO / PatentsView", await check_uspto()),
-        ("LLM translation", await check_llm()),
-        ("Embeddings", await check_embeddings()),
-        ("Supabase", check_supabase()),
-    ]
-    print("\nProblemForge data-source diagnostics")
-    print("-" * 60)
+    checks: list[tuple[str, tuple[str, str]]] = []
+    for source in all_sources():
+        checks.append((f"Patent source: {source.name}", await check_source(source)))
+    checks.append(("LLM translation", await check_llm()))
+    checks.append(("Embeddings", await check_embeddings()))
+    checks.append(("Supabase", check_supabase()))
+    checks.append(("Stripe", check_stripe()))
+
+    print("\nProblemForge data-source & billing diagnostics")
+    print("-" * 64)
     failed = False
     for name, (status, message) in checks:
         print(f"[{status:>4}] {name}: {message}")
         if status == "FAIL":
             failed = True
-    print("-" * 60)
-    print("Note: BigQuery / Lens.org / EPO OPS adapters are post-MVP (not implemented).")
+    print("-" * 64)
+    print("Ingestion uses every configured source; at least one is required.")
     return 1 if failed else 0
 
 
