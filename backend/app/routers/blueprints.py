@@ -4,10 +4,12 @@ import csv
 import io
 import re
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Response
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Response
 
 from ..auth import current_user_optional, current_user_required
+from ..config import settings
 from ..db import get_db
+from ..services import playbook as playbook_service
 from ..services.usage import check_and_increment, record_event
 from ..tiers import tier_config
 
@@ -15,7 +17,8 @@ router = APIRouter(prefix="/api/v1/blueprints", tags=["blueprints"])
 
 LIST_FIELDS = (
     "id, title, domain, patent_number, human_problem, expired_logic, "
-    "buildability_score, demand_signal_score, public_domain_verified, created_at"
+    "buildability_score, demand_signal_score, validation_score, "
+    "public_domain_verified, created_at"
 )
 
 _SORTS = {
@@ -121,7 +124,9 @@ async def export_blueprints(user: dict = Depends(current_user_required)):
 
 @router.get("/{blueprint_id}")
 async def get_blueprint(
-    blueprint_id: str, user: dict | None = Depends(current_user_optional)
+    blueprint_id: str,
+    background_tasks: BackgroundTasks,
+    user: dict | None = Depends(current_user_optional),
 ):
     db = get_db()
     rows = (
@@ -137,6 +142,19 @@ async def get_blueprint(
         raise HTTPException(status_code=404, detail="Blueprint not found")
     blueprint = rows[0]
     blueprint.pop("embedding", None)
+
+    # Modern AI Playbook + 5-point validation are generated once, lazily:
+    # the first signed-in view kicks a background job; the page polls.
+    enriched = bool(blueprint.get("playbook") and blueprint.get("validation"))
+    if enriched:
+        enrichment_status = "ready"
+    elif not settings.llm_api_key:
+        enrichment_status = "unavailable"
+    elif user is not None:
+        background_tasks.add_task(playbook_service.generate_enrichment, blueprint_id)
+        enrichment_status = "generating"
+    else:
+        enrichment_status = "pending"
 
     patent = None
     if blueprint.get("raw_patent_id"):
@@ -155,8 +173,12 @@ async def get_blueprint(
     )
     if not unlocked:
         # Locked content never leaves the server for free/anonymous callers.
+        # The 5-point validation stays visible to everyone — that's the point
+        # of showing users how valid the idea is — but the playbook (stack +
+        # marketing) is paid content like the build plan.
         blueprint["build_plan"] = None
         blueprint["master_prompt"] = None
+        blueprint["playbook"] = None
 
     saved = False
     if user:
@@ -170,7 +192,13 @@ async def get_blueprint(
             .data
         )
 
-    return {**blueprint, "patent": patent, "locked": not unlocked, "saved": saved}
+    return {
+        **blueprint,
+        "patent": patent,
+        "locked": not unlocked,
+        "saved": saved,
+        "enrichment_status": enrichment_status,
+    }
 
 
 @router.get("/{blueprint_id}/related")

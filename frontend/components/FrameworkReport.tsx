@@ -8,7 +8,12 @@ import {
   Wrench,
   type LucideIcon,
 } from "lucide-react";
-import type { CommunityQuestion, FrameworkAnalysis, FrameworkPillar } from "@/lib/types";
+import type {
+  CommunityMatch,
+  CommunityQuestion,
+  FrameworkAnalysis,
+  FrameworkPillar,
+} from "@/lib/types";
 import clsx from "clsx";
 
 function scoreColor(score: number): string {
@@ -158,6 +163,44 @@ export function FrameworkReport({ framework }: { framework: FrameworkAnalysis })
             </p>
           </div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+export function CommunityMatches({ matches }: { matches: CommunityMatch[] }) {
+  if (matches.length === 0) return null;
+  return (
+    <div className="mt-12">
+      <h2 className="text-xl font-semibold tracking-tight">
+        Startup communities are asking for this
+      </h2>
+      <p className="mt-1 text-sm text-muted">
+        Public posts from idea communities (r/SomebodyMakeThis, r/startups,
+        and friends) that closely match your concept — live demand, with
+        receipts.
+      </p>
+      <div className="card mt-4 divide-y divide-edge">
+        {matches.map((match) => (
+          <a
+            key={match.url}
+            href={match.url}
+            target="_blank"
+            rel="noopener nofollow"
+            className="flex items-center justify-between gap-4 p-4 transition hover:bg-raised/50"
+          >
+            <div className="min-w-0">
+              <p className="truncate text-sm text-ink/90">{match.title}</p>
+              <p className="mt-1 text-xs text-muted">
+                {match.community ?? "reddit"} · {match.upvotes} upvotes ·{" "}
+                {match.num_comments} comments
+              </p>
+            </div>
+            <span className="flex-none rounded-full border border-teal/30 bg-teal-soft px-2.5 py-1 text-xs font-semibold text-teal">
+              {Math.round(match.similarity * 100)}%
+            </span>
+          </a>
+        ))}
       </div>
     </div>
   );

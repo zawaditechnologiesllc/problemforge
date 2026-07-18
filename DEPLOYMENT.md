@@ -13,6 +13,7 @@ Each step produces values the next one needs.
    - `supabase/migrations/20260717000002_enterprise_tier.sql`
    - `supabase/migrations/20260717000003_fto_reports.sql`
    - `supabase/migrations/20260717000004_global_sources_active_corpus.sql`
+   - `supabase/migrations/20260718000005_playbooks_community.sql`
    - `supabase/seed.sql`
 3. **Project Settings → API** — note these values:
    - `Project URL` → `SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_URL`
@@ -123,8 +124,10 @@ cd backend
 python -m worker.check_sources         # live-verify providers + 20-region routing + LLM + embeddings + DB + Stripe
 python -m worker.backfill_embeddings   # embed seed blueprints → vector Validator
 python -m worker.ingest                # first weekly-style pass across all configured regions
-python -m worker.backfill_history      # populate history: 1999 → the 20-year boundary (resumable; run in chunks)
+python -m worker.backfill_history      # populate history: timeless → the 20-year boundary (resumable; run in chunks)
 python -m worker.ingest_active         # build the internal active-landscape corpus (Validator caution signal)
+python -m worker.ingest_community      # build the startup-community corpus (public old.reddit posts)
+python -m worker.backfill_enrichment   # generate playbooks + 5-point validation for the seed catalog
 ```
 
 Backfill tips: `worker.backfill_history` covers the **entire public-domain
@@ -160,4 +163,6 @@ are cached.
 - [ ] Policy pages live at /terms, /privacy, /refunds, /acceptable-use, /disclaimer with your real contact email
 - [ ] After `worker.ingest_active` runs: validator on a very current idea (e.g. "AI agent that books restaurant reservations") shows the landscape caution; blueprint pages still show only expired patents
 - [ ] Validator shows the 5-pillar framework report and (when communities have relevant threads) the "Real questions from real people" list
+- [ ] After `worker.ingest_community`: validator also shows "Startup communities are asking for this" with links to the original public posts
+- [ ] Blueprint pages show the 5-Point Validation scorecard to signed-out visitors once generated; the Modern AI Playbook unlocks on paid plans (run `worker.backfill_enrichment` or open each blueprint signed-in to generate)
 - [ ] Re-running the same validator idea is near-instant (cache hit — check Upstash/Render Key Value metrics)

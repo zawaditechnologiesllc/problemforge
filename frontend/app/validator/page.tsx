@@ -4,10 +4,15 @@ import { AlertTriangle, ArrowRight, Loader2, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { DomainBadge } from "@/components/Badges";
-import { CommunityQuestions, FrameworkReport } from "@/components/FrameworkReport";
+import {
+  CommunityMatches,
+  CommunityQuestions,
+  FrameworkReport,
+} from "@/components/FrameworkReport";
 import { validateIdea } from "@/lib/api";
 import type {
   ActiveLandscape,
+  CommunityMatch,
   CommunityQuestion,
   FrameworkAnalysis,
   ValidatorMatch,
@@ -39,6 +44,7 @@ export default function ValidatorPage() {
   const [landscape, setLandscape] = useState<ActiveLandscape | null>(null);
   const [framework, setFramework] = useState<FrameworkAnalysis | null>(null);
   const [questions, setQuestions] = useState<CommunityQuestion[]>([]);
+  const [communityMatches, setCommunityMatches] = useState<CommunityMatch[]>([]);
 
   async function run(event: React.FormEvent) {
     event.preventDefault();
@@ -49,12 +55,14 @@ export default function ValidatorPage() {
     setLandscape(null);
     setFramework(null);
     setQuestions([]);
+    setCommunityMatches([]);
     try {
       const result = await validateIdea(idea.trim());
       setMatches(result.matches);
       setLandscape(result.active_landscape ?? null);
       setFramework(result.framework ?? null);
       setQuestions(result.community_questions ?? []);
+      setCommunityMatches(result.community_matches ?? []);
     } catch (err: any) {
       setError(err?.message ?? "Validation failed. Try again.");
     } finally {
@@ -196,6 +204,7 @@ export default function ValidatorPage() {
       )}
 
       {framework && <FrameworkReport framework={framework} />}
+      {matches && <CommunityMatches matches={communityMatches} />}
       {matches && <CommunityQuestions questions={questions} />}
     </div>
   );

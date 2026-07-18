@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field
 from ..auth import current_user_optional
 from ..config import settings
 from ..db import get_db
-from ..services import demand, framework, llm
+from ..services import community, demand, framework, llm
 from ..services.active import landscape_signal
 from ..services.usage import check_and_increment
 
@@ -100,10 +100,17 @@ async def validate_idea(
         signals = {"questions": [], "score": None}
     analysis = await framework.analyze_idea(body.idea, matches, signals["questions"])
 
+    # Standing startup-community corpus: public posts similar to this idea,
+    # shown to users with links back to the original threads.
+    community_matches: list[dict] = []
+    if embedding is not None:
+        community_matches = community.match_posts(db, embedding)
+
     return {
         "method": method,
         "matches": matches,
         "active_landscape": active_landscape,
         "community_questions": signals["questions"],
+        "community_matches": community_matches,
         "framework": analysis,
     }

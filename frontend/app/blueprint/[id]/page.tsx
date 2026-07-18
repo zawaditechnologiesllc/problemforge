@@ -7,6 +7,7 @@ import {
   Hammer,
   Loader2,
   MessageSquareWarning,
+  Rocket,
   Terminal,
   Unlock,
   type LucideIcon,
@@ -22,6 +23,8 @@ import {
 } from "@/components/Badges";
 import { CopyButton } from "@/components/CopyButton";
 import { LockedPanel } from "@/components/LockedPanel";
+import { PlaybookSection } from "@/components/PlaybookSection";
+import { ValidationScorecard } from "@/components/ValidationScorecard";
 import {
   ftoCheckout,
   getBlueprint,
@@ -103,6 +106,29 @@ export default function BlueprintPage() {
       .then(({ data }) => setSignedIn(!!data.session))
       .catch(() => setSignedIn(false));
   }, [id]);
+
+  // While the playbook + validation generate in the background, poll for
+  // the enriched blueprint (bounded: every 6s for up to ~1 minute).
+  useEffect(() => {
+    if (!id || blueprint?.enrichment_status !== "generating") return;
+    let attempts = 0;
+    const timer = setInterval(() => {
+      attempts += 1;
+      if (attempts > 10) {
+        clearInterval(timer);
+        return;
+      }
+      getBlueprint(id)
+        .then((fresh) => {
+          if (fresh.enrichment_status === "ready") {
+            setBlueprint(fresh);
+            clearInterval(timer);
+          }
+        })
+        .catch(() => undefined);
+    }, 6000);
+    return () => clearInterval(timer);
+  }, [id, blueprint?.enrichment_status]);
 
   async function orderFto() {
     if (!blueprint || ftoBusy) return;
@@ -219,8 +245,24 @@ export default function BlueprintPage() {
       </div>
 
       <div className="mt-10 gap-10 lg:grid lg:grid-cols-[1fr_290px]">
-        {/* Four-section blueprint */}
+        {/* Blueprint sections */}
         <div className="space-y-6">
+          {/* 5-point validation — visible to everyone */}
+          {blueprint.validation ? (
+            <ValidationScorecard validation={blueprint.validation} />
+          ) : blueprint.enrichment_status === "generating" ? (
+            <div className="card flex items-center gap-3 p-5 text-sm text-muted">
+              <Loader2 className="animate-spin text-teal" size={16} />
+              Scoring this idea against the 5-Point Validation Framework...
+            </div>
+          ) : blueprint.enrichment_status === "pending" ? (
+            <div className="card p-5 text-sm text-muted">
+              5-point validation pending —{" "}
+              <Link href="/login" className="text-accent">sign in</Link> to
+              trigger scoring for this blueprint.
+            </div>
+          ) : null}
+
           <SectionCard icon={MessageSquareWarning} title="The Human Problem">
             <p className="text-[15px] leading-relaxed text-ink/90">
               {blueprint.human_problem}
@@ -261,6 +303,28 @@ export default function BlueprintPage() {
               </pre>
             )}
           </SectionCard>
+
+          {/* The Modern AI Playbook: still-exists check, AI approach, full
+              stack, and marketing channels. Paid content like the build plan. */}
+          {blueprint.enrichment_status !== "unavailable" && (
+            <SectionCard icon={Rocket} title="The Modern AI Playbook">
+              {blueprint.locked ? (
+                <LockedPanel message="Upgrade to unlock the full playbook: whether this problem still exists, the modern AI approach, the end-to-end stack, and the marketing channels to launch with." />
+              ) : blueprint.playbook ? (
+                <PlaybookSection playbook={blueprint.playbook} />
+              ) : blueprint.enrichment_status === "generating" ? (
+                <div className="flex items-center gap-3 py-4 text-sm text-muted">
+                  <Loader2 className="animate-spin text-accent" size={16} />
+                  Writing the modern playbook for this problem — stack,
+                  integrations, and launch channels. This takes ~30 seconds.
+                </div>
+              ) : (
+                <p className="py-2 text-sm text-muted">
+                  Playbook not generated yet — check back shortly.
+                </p>
+              )}
+            </SectionCard>
+          )}
         </div>
 
         {/* Related sidebar */}

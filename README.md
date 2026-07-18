@@ -115,6 +115,34 @@ best-effort by design (Quora frequently serves bots a login wall → empty
 result, never an error). Keep volume tiny and review each site's terms
 before scaling this up; set `DEMAND_SIGNALS_ENABLED=false` to turn it off.
 
+### Startup-community corpus (public old.reddit posts)
+
+`backend/app/services/community.py` maintains a standing corpus of startup
+ideas people post publicly — the month's top threads from
+r/SomebodyMakeThis, r/AppIdeas, r/Startup_Ideas, r/startups, r/SaaS,
+r/Entrepreneur, r/smallbusiness, and r/sidehustle — embedded into pgvector
+(`community_posts` table). Refreshed weekly by `worker/ingest_community.py`
+(cron in `render.yaml`). It improves what users see, **with attribution and
+links back to the original public posts**:
+
+- Validator → "Startup communities are asking for this" matches with
+  upvote/comment counts.
+- Blueprint playbooks → evidence for the "does this problem still exist?"
+  verdict.
+
+### Blueprint enrichment: playbooks + validation scores
+
+`backend/app/services/playbook.py` generates, once per blueprint and stores
+forever: the **Modern AI Playbook** (problem-today verdict, AI-first
+solution approach, stack across design/coding/configuration/integration/
+testing, and 3–5 marketing channels ranked by expected impact) and the
+**5-point validation** (the same framework the Validator uses, run against
+the blueprint itself; `validation_score` is denormalized for list views).
+Generation is lazy — the first signed-in view of a blueprint kicks a
+background job and the page polls until ready — or bulk via
+`python -m worker.backfill_enrichment`. A cache lock prevents duplicate LLM
+spend; roughly two LLM calls per blueprint, ever.
+
 ### Caching (cost control)
 
 `backend/app/services/cache.py` — automatic backend selection:
@@ -156,6 +184,8 @@ Refresh it monthly with `python -m worker.ingest_active` (cron included in
 - **Homepage** — hero, frustration-first search, category pills, featured blueprint cards
 - **Browse/Search** — filter sidebar (buildability slider, verified public-domain toggle, sort), responsive list view
 - **Blueprint detail** — four-section dashboard (Human Problem / Expired Logic / Build Plan / Master Prompt) with locked/blurred state for free users; locked content **never leaves the server**
+- **5-Point Validation scorecard on every blueprint** — visible to ALL visitors (pillar scores, assessments, and verdict) so users can judge how valid each idea is; the overall score also shows as a badge on cards
+- **The Modern AI Playbook per blueprint** (paid, like the build plan) — does the old problem still exist today (with community evidence), how to solve it **now using AI**, an end-to-end stack (design → coding → configuration → integration → testing), and marketing/distribution channels with the audience each one reaches and the specific tactics
 - **Validator ("Collision Checker")** — pgvector similarity search of your idea against every blueprint (trigram text fallback when no embeddings key is configured), plus the **5-Point Validation Framework** and real community demand signals (below)
 - **Auth** — Supabase email/password + Google OAuth
 - **Billing** — Stripe Checkout + Customer Portal + webhooks driving `profiles.tier`
@@ -250,6 +280,8 @@ python -m worker.backfill_embeddings   # embed the seed blueprints (enables vect
 python -m worker.ingest                # one weekly-style pass across all configured regions
 python -m worker.backfill_history      # timeless backfill -> the 20-year boundary (resumable)
 python -m worker.ingest_active         # refresh the internal active-landscape corpus
+python -m worker.ingest_community      # refresh the startup-community corpus (public posts)
+python -m worker.backfill_enrichment   # bulk-generate playbooks + validation scores
 ```
 
 Backend tests (all 4 source adapters, FTO verification + PDF, parser, tiers):

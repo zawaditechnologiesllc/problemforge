@@ -6,6 +6,7 @@ import {
   DemandBadge,
   DomainBadge,
   PublicDomainBadge,
+  ValidationBadge,
 } from "@/components/Badges";
 
 export function BlueprintCard({
@@ -26,6 +27,7 @@ export function BlueprintCard({
           <PublicDomainBadge />
           <DemandBadge score={blueprint.demand_signal_score} />
           <BuildabilityBadge score={blueprint.buildability_score} />
+          <ValidationBadge score={blueprint.validation_score} />
         </div>
         <h3 className="mt-3 text-lg font-semibold tracking-tight group-hover:text-accent">
           {blueprint.title}
@@ -46,6 +48,7 @@ export function BlueprintCard({
         <PublicDomainBadge />
         <DemandBadge score={blueprint.demand_signal_score} />
         <BuildabilityBadge score={blueprint.buildability_score} />
+        <ValidationBadge score={blueprint.validation_score} />
       </div>
       <h3 className="mt-4 text-lg font-semibold leading-snug tracking-tight">
         <Link

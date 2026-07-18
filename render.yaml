@@ -96,6 +96,28 @@ services:
       - key: REDIS_URL
         sync: false
 
+  # Weekly refresh of the startup-community corpus (public old.reddit posts)
+  # that improves Validator results and blueprint "problem still exists"
+  # evidence — shown to users with links back to the original threads.
+  - type: cron
+    name: problemforge-community
+    runtime: python
+    rootDir: backend
+    schedule: "0 8 * * 2" # Tuesdays 08:00 UTC
+    buildCommand: pip install -r requirements.txt
+    startCommand: python -m worker.ingest_community
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: EMBEDDINGS_API_KEY
+        sync: false
+      - key: REDIS_URL
+        sync: false
+
   # Monthly refresh of the internal active-patent landscape corpus that powers
   # the Validator's aggregate caution signal. Internal-only data — never
   # published to users.

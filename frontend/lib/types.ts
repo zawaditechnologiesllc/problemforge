@@ -9,14 +9,47 @@ export interface BlueprintSummary {
   expired_logic?: string;
   buildability_score: number | null;
   demand_signal_score: number | null;
+  validation_score?: number | null;
   public_domain_verified?: boolean;
   created_at: string;
+}
+
+export interface PlaybookChannel {
+  channel: string;
+  audience: string;
+  how: string;
+}
+
+export interface Playbook {
+  problem_today: { still_exists: boolean; assessment: string; evidence: string };
+  ai_solution: string;
+  stack: {
+    design: string;
+    coding: string;
+    configuration: string;
+    integration: string;
+    testing: string;
+  };
+  marketing: { channels: PlaybookChannel[] };
+}
+
+export interface CommunityMatch {
+  title: string;
+  url: string;
+  community: string | null;
+  upvotes: number;
+  num_comments: number;
+  similarity: number;
 }
 
 export interface BlueprintDetail extends BlueprintSummary {
   expired_logic: string;
   build_plan: string | null;
   master_prompt: string | null;
+  playbook: Playbook | null;
+  validation: FrameworkAnalysis | null;
+  validation_score: number | null;
+  enrichment_status: "ready" | "generating" | "pending" | "unavailable";
   locked: boolean;
   saved: boolean;
   patent: {

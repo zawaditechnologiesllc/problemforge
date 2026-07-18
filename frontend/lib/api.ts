@@ -4,6 +4,7 @@ import type {
   ApiKey,
   BlueprintDetail,
   BlueprintSummary,
+  CommunityMatch,
   CommunityQuestion,
   FrameworkAnalysis,
   FtoReport,
@@ -114,6 +115,7 @@ export function validateIdea(idea: string) {
     matches: ValidatorMatch[];
     active_landscape: ActiveLandscape | null;
     community_questions: CommunityQuestion[];
+    community_matches: CommunityMatch[];
     framework: FrameworkAnalysis | null;
   }>("/api/v1/validate", { method: "POST", body: { idea } });
 }

@@ -1,5 +1,21 @@
-import { ShieldCheck, TrendingUp, Zap } from "lucide-react";
+import { Gauge, ShieldCheck, TrendingUp, Zap } from "lucide-react";
 import clsx from "clsx";
+
+export function ValidationBadge({ score }: { score?: number | null }) {
+  if (score == null) return null;
+  return (
+    <span
+      className={clsx(
+        "inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-medium",
+        score >= 70
+          ? "border-teal/30 bg-teal-soft text-teal"
+          : "border-edge bg-surface text-muted"
+      )}
+    >
+      <Gauge size={12} /> {score} Validation
+    </span>
+  );
+}
 
 export function PublicDomainBadge() {
   return (
