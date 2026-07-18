@@ -7,6 +7,16 @@ export async function GET(request: Request) {
   const code = searchParams.get("code");
   const next = searchParams.get("next") ?? "/account";
 
+  // Expired/invalid links arrive with error params instead of a code —
+  // surface them on the login page rather than a dead redirect.
+  const errorDescription =
+    searchParams.get("error_description") ?? searchParams.get("error");
+  if (errorDescription && !code) {
+    return NextResponse.redirect(
+      `${origin}/login?error=${encodeURIComponent(errorDescription)}`
+    );
+  }
+
   if (code) {
     const cookieStore = cookies();
     const supabase = createServerClient(

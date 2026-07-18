@@ -190,6 +190,14 @@ function AccountContent() {
           <div className="mb-6 hidden lg:block">
             <p className="text-sm font-semibold">{me.email}</p>
             <div className="mt-2">{tierBadge}</div>
+            {me.is_admin && (
+              <Link
+                href="/admin"
+                className="mt-3 inline-block text-xs font-medium text-accent"
+              >
+                Open admin panel →
+              </Link>
+            )}
           </div>
           <nav className="mb-6 flex gap-1 overflow-x-auto lg:mb-0 lg:flex-col">
             {tabs.map(({ id, label, icon: Icon }) => (

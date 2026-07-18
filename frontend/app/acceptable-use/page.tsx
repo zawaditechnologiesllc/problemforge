@@ -1,9 +1,12 @@
 import { PolicyPage, Section } from "@/components/PolicyPage";
-import { CONTACT_EMAIL, SITE_NAME } from "@/lib/site";
+import { SITE_NAME } from "@/lib/site";
+import { contactLine, getSiteSettings } from "@/lib/settings";
 
 export const metadata = { title: "Acceptable Use Policy" };
 
-export default function AcceptableUsePage() {
+export default async function AcceptableUsePage() {
+  const { footer } = await getSiteSettings();
+  const contact = contactLine(footer);
   return (
     <PolicyPage title="Acceptable Use Policy">
       <Section heading="1. The short version">
@@ -64,7 +67,7 @@ export default function AcceptableUsePage() {
           Violations may lead to throttling, feature suspension, or account
           termination, with notice where practicable. Where a violation is
           also unlawful, we may report it. To report abuse or ask whether a
-          use is okay: {CONTACT_EMAIL}.
+          use is okay: {contact}.
         </p>
       </Section>
     </PolicyPage>

@@ -14,6 +14,7 @@ Each step produces values the next one needs.
    - `supabase/migrations/20260717000003_fto_reports.sql`
    - `supabase/migrations/20260717000004_global_sources_active_corpus.sql`
    - `supabase/migrations/20260718000005_playbooks_community.sql`
+   - `supabase/migrations/20260718000006_admin_site_settings.sql`
    - `supabase/seed.sql`
 3. **Project Settings → API** — note these values:
    - `Project URL` → `SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_URL`
@@ -138,12 +139,28 @@ Budget LLM spend accordingly — each new patent costs one translation call;
 setting `REDIS_URL` first is recommended so embeddings and repeat lookups
 are cached.
 
+### Grant yourself admin
+
+Sign up normally on the live site, then in the Supabase SQL editor:
+
+```sql
+update public.profiles set is_admin = true where email = 'you@company.com';
+```
+
+Visit `/admin`: set the **Site Footer** (company name, address, contact
+email, links — this feeds the footer and the policy-page contact lines),
+review the overview stats, and use Operations to run ingestion/enrichment
+on demand.
+
 ### Before you announce launch
 
-- Set your real support email + company name in `frontend/lib/site.ts`
-  (used by /terms, /privacy, /refunds, /acceptable-use, /disclaimer) and
-  have counsel review those pages.
+- Fill in Admin → Site Footer (contact email + address) and have counsel
+  review the policy pages.
 - Confirm the policy pages render at their URLs and appear in the footer.
+- Submit `https://your-domain/sitemap.xml` in Google Search Console and Bing
+  Webmaster Tools; verify `/robots.txt` and `/llms.txt` resolve.
+- Fetch a blueprint page with `curl` and confirm the title, meta description,
+  and JSON-LD are present in the raw HTML (server-rendered for crawlers).
 
 ## Smoke checklist
 
@@ -166,3 +183,6 @@ are cached.
 - [ ] After `worker.ingest_community`: validator also shows "Startup communities are asking for this" with links to the original public posts
 - [ ] Blueprint pages show the 5-Point Validation scorecard to signed-out visitors once generated; the Modern AI Playbook unlocks on paid plans (run `worker.backfill_enrichment` or open each blueprint signed-in to generate)
 - [ ] Re-running the same validator idea is near-instant (cache hit — check Upstash/Render Key Value metrics)
+- [ ] Sign-in/sign-up show the password visibility toggle; forgot-password sends a reset email and /reset-password accepts the new password; an expired link shows a friendly error on /login
+- [ ] `/admin` loads for the admin account (and redirects non-admins away); footer edits appear on the site within ~5 minutes
+- [ ] `curl https://your-domain/robots.txt`, `/sitemap.xml`, and `/llms.txt` all resolve; blueprint page HTML contains its title + JSON-LD without JavaScript

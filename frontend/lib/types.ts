@@ -110,6 +110,7 @@ export interface Me {
   email: string | null;
   tier: "free" | "builder" | "pro" | "enterprise";
   tier_name: string;
+  is_admin: boolean;
   has_billing: boolean;
   usage: {
     searches_used: number;
@@ -136,6 +137,49 @@ export interface FtoReport {
   error: string | null;
   created_at: string;
   completed_at: string | null;
+}
+
+export interface AdminOverview {
+  users: { total: number; by_tier: Record<string, number> };
+  blueprints: { public: number; hidden: number; enriched: number };
+  raw_patents: number;
+  community_posts: number;
+  active_patents: number;
+  fto_reports: Record<string, number>;
+  usage_last_30d: Record<string, number>;
+}
+
+export interface AdminUser {
+  id: string;
+  email: string | null;
+  tier: string;
+  is_admin: boolean;
+  monthly_search_count: number;
+  monthly_validate_count: number;
+  monthly_api_count: number;
+  stripe_customer_id: string | null;
+  created_at: string;
+}
+
+export interface AdminBlueprint {
+  id: string;
+  title: string;
+  domain: string;
+  patent_number: string | null;
+  buildability_score: number | null;
+  demand_signal_score: number | null;
+  validation_score: number | null;
+  is_public: boolean;
+  created_at: string;
+}
+
+export interface FooterSettingsData {
+  company_name: string;
+  product_name: string;
+  tagline: string;
+  address: string;
+  contact_email: string;
+  links: { label: string; url: string }[];
 }
 
 export interface ApiKey {

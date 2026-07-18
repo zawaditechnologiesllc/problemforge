@@ -1,6 +1,7 @@
 # ProblemForge
 
 **Find validated startup problems from expired patents.**
+A [Zawadi Technologies LLC](https://github.com/zawaditechnologiesllc) product.
 
 ProblemForge mines expired and abandoned patents — inventions that are now
 public domain — and uses an LLM pipeline to translate each one into a
@@ -187,7 +188,8 @@ Refresh it monthly with `python -m worker.ingest_active` (cron included in
 - **5-Point Validation scorecard on every blueprint** — visible to ALL visitors (pillar scores, assessments, and verdict) so users can judge how valid each idea is; the overall score also shows as a badge on cards
 - **The Modern AI Playbook per blueprint** (paid, like the build plan) — does the old problem still exist today (with community evidence), how to solve it **now using AI**, an end-to-end stack (design → coding → configuration → integration → testing), and marketing/distribution channels with the audience each one reaches and the specific tactics
 - **Validator ("Collision Checker")** — pgvector similarity search of your idea against every blueprint (trigram text fallback when no embeddings key is configured), plus the **5-Point Validation Framework** and real community demand signals (below)
-- **Auth** — Supabase email/password + Google OAuth
+- **Auth, complete** — Supabase email/password + Google OAuth, show/hide password toggles, forgot-password + reset-password flows, email-confirmation handling with friendly error surfacing for expired links
+- **Admin panel** (`/admin`, database-flagged admins only) — business overview (users by tier, usage, FTO pipeline), blueprint management (visibility, delete), user management (tier grants, admin grants), FTO monitoring, one-click worker runs, and an editor for the site footer (company, address, contact, links) so nothing user-facing is hardcoded
 - **Billing** — Stripe Checkout + Customer Portal + webhooks driving `profiles.tier`
 - **Account dashboard** — usage meters, saved blueprints, API keys, billing management
 - **Developer API** — `X-API-Key` auth against `/api/v1/*` (Pro: 5,000 req/mo; Enterprise: unlimited), bulk CSV export on Enterprise
@@ -297,13 +299,47 @@ pytest
 Step-by-step instructions for Supabase → Render → Vercel → Stripe are in
 **[DEPLOYMENT.md](./DEPLOYMENT.md)**.
 
+## SEO, AEO & GEO
+
+Built to be found — by search engines and by AI assistants:
+
+- **Server-rendered blueprint pages**: every `/blueprint/{id}` renders full
+  public content server-side with unique titles, meta descriptions, canonical
+  URLs, OpenGraph/Twitter cards, and JSON-LD (`TechArticle` +
+  `BreadcrumbList`) — each blueprint is a long-tail landing page.
+- **Site-wide structured data**: `Organization` + `WebSite` (with
+  `SearchAction`) JSON-LD in the root layout; `metadataBase` and per-route
+  metadata on browse/validator/pricing.
+- **`/sitemap.xml`**: static pages + up to 500 blueprint pages, regenerated
+  hourly from the live catalog.
+- **`/robots.txt`**: public content open to all crawlers **including AI
+  crawlers by name** (GPTBot, ClaudeBot, PerplexityBot, Google-Extended,
+  CCBot, …); account/admin/auth flows excluded and `noindex`ed.
+- **`/llms.txt`**: the AI-assistant-facing site summary (key facts, page map,
+  citation guidance) for answer-engine and generative-engine optimization.
+- Clean semantic HTML, mobile-first responsive layouts, and fast static
+  pages cover the Core Web Vitals side.
+
+After deploy: submit the sitemap in Google Search Console and Bing Webmaster
+Tools, and verify `https://your-domain/robots.txt` + `/llms.txt` resolve.
+
+## Admin setup
+
+1. Run all migrations (through `20260718000006`), sign up normally on the
+   site, then grant yourself admin in the Supabase SQL editor:
+   `update public.profiles set is_admin = true where email = 'you@company.com';`
+2. Visit `/admin` — overview, blueprints, users, FTO reports, operations
+   (run any worker on demand), and the Site Footer editor (company, address,
+   contact email, extra links — feeds the footer and policy pages live).
+
 ## Policy pages
 
 The frontend ships complete, product-specific policy pages, linked from the
 footer and the signup flow: `/terms`, `/privacy`, `/refunds`,
-`/acceptable-use`, `/disclaimer`. Before launch, set your real contact email
-and operating entity in `frontend/lib/site.ts` and have counsel review the
-pages — they are a strong starting point, not legal advice.
+`/acceptable-use`, `/disclaimer`. Contact details on these pages come from
+the admin-editable site settings (no hardcoded emails). Before launch, set
+your contact email in Admin → Site Footer and have counsel review the pages
+— they are a strong starting point, not legal advice.
 
 ## Notes
 

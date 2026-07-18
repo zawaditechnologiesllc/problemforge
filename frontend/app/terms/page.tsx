@@ -1,9 +1,12 @@
 import { PolicyPage, Section } from "@/components/PolicyPage";
-import { CONTACT_EMAIL, OPERATOR_NAME, SITE_NAME } from "@/lib/site";
+import { OPERATOR_NAME, SITE_NAME } from "@/lib/site";
+import { contactLine, getSiteSettings } from "@/lib/settings";
 
 export const metadata = { title: "Terms of Service" };
 
-export default function TermsPage() {
+export default async function TermsPage() {
+  const { footer } = await getSiteSettings();
+  const contact = contactLine(footer);
   return (
     <PolicyPage title="Terms of Service">
       <Section heading="1. Agreement">
@@ -43,7 +46,7 @@ export default function TermsPage() {
           You must provide accurate information, keep your credentials and API
           keys secure, and be at least 18 years old (or the age of majority in
           your jurisdiction). You are responsible for activity under your
-          account and API keys. Notify us promptly at {CONTACT_EMAIL} if you
+          account and API keys. Notify us promptly at {contact} if you
           suspect unauthorized access.
         </p>
       </Section>
@@ -129,7 +132,7 @@ export default function TermsPage() {
 
       <Section heading="11. Contact">
         <p>
-          Questions about these Terms: {CONTACT_EMAIL}.
+          Questions about these Terms: {contact}.
         </p>
       </Section>
     </PolicyPage>

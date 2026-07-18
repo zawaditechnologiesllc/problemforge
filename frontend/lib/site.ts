@@ -1,10 +1,12 @@
-// Site-wide constants used by the policy pages and footer.
-// TODO before launch: set the real contact email and operating entity below,
-// and have counsel review the policy pages (they are a solid starting point,
-// not legal advice).
+// Site-wide constants. Editable content (footer address, contact email,
+// links) lives in the database (site_settings) and is managed from the admin
+// panel — see lib/settings.ts. Nothing user-facing is hardcoded here beyond
+// safe defaults.
 export const SITE_NAME = "ProblemForge";
-export const OPERATOR_NAME = "ProblemForge"; // your registered company name
-export const CONTACT_EMAIL = "support@problemforge.example"; // replace with a real inbox
+export const OPERATOR_NAME = "Zawadi Technologies LLC";
+export const SITE_URL = (
+  process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"
+).replace(/\/$/, "");
 export const POLICIES_EFFECTIVE_DATE = "July 17, 2026";
 
 export const POLICY_LINKS = [

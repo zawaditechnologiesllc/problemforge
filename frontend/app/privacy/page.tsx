@@ -1,16 +1,19 @@
 import { PolicyPage, Section } from "@/components/PolicyPage";
-import { CONTACT_EMAIL, OPERATOR_NAME, SITE_NAME } from "@/lib/site";
+import { OPERATOR_NAME, SITE_NAME } from "@/lib/site";
+import { contactLine, getSiteSettings } from "@/lib/settings";
 
 export const metadata = { title: "Privacy Policy" };
 
-export default function PrivacyPage() {
+export default async function PrivacyPage() {
+  const { footer } = await getSiteSettings();
+  const contact = contactLine(footer);
   return (
     <PolicyPage title="Privacy Policy">
       <Section heading="1. Who we are">
         <p>
           {SITE_NAME} is operated by {OPERATOR_NAME}. This policy explains what
           personal data we collect, why, and the choices you have. Contact:{" "}
-          {CONTACT_EMAIL}.
+          {contact}.
         </p>
       </Section>
 
@@ -87,7 +90,7 @@ export default function PrivacyPage() {
           Depending on your jurisdiction (including under GDPR and CCPA), you
           may have rights to access, correct, export, or delete your personal
           data, and to object to or restrict certain processing. Email{" "}
-          {CONTACT_EMAIL} and we will respond within 30 days. We do not sell
+          {contact} and we will respond within 30 days. We do not sell
           personal data.
         </p>
       </Section>
@@ -98,7 +101,7 @@ export default function PrivacyPage() {
           providers. Row-level security restricts database access; API keys
           are stored as one-way hashes; report files live in private storage
           accessed via short-lived signed URLs. No system is perfectly secure —
-          report concerns to {CONTACT_EMAIL}.
+          report concerns to {contact}.
         </p>
       </Section>
 

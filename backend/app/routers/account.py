@@ -23,6 +23,7 @@ async def me(user: dict = Depends(current_user_required)):
         "email": profile.get("email"),
         "tier": profile["tier"],
         "tier_name": limits["name"],
+        "is_admin": bool(profile.get("is_admin")),
         "has_billing": bool(profile.get("stripe_customer_id")),
         "usage": {
             "searches_used": profile.get("monthly_search_count") or 0,

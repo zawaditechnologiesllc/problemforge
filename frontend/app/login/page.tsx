@@ -1,7 +1,10 @@
 import { Suspense } from "react";
 import { AuthForm } from "@/components/AuthForm";
 
-export const metadata = { title: "Sign In" };
+export const metadata = {
+  title: "Sign In",
+  robots: { index: false, follow: false },
+};
 
 export default function LoginPage() {
   return (

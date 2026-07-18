@@ -1,9 +1,12 @@
 import { PolicyPage, Section } from "@/components/PolicyPage";
-import { CONTACT_EMAIL, SITE_NAME } from "@/lib/site";
+import { SITE_NAME } from "@/lib/site";
+import { contactLine, getSiteSettings } from "@/lib/settings";
 
 export const metadata = { title: "Disclaimer" };
 
-export default function DisclaimerPage() {
+export default async function DisclaimerPage() {
+  const { footer } = await getSiteSettings();
+  const contact = contactLine(footer);
   return (
     <PolicyPage title="Legal Disclaimer">
       <Section heading="1. Not legal advice">
@@ -70,7 +73,7 @@ export default function DisclaimerPage() {
           warranties. You are responsible for what you build and how you
           commercialize it. To the extent permitted by law, we disclaim
           liability for losses arising from reliance on the service&apos;s
-          content. Questions: {CONTACT_EMAIL}.
+          content. Questions: {contact}.
         </p>
       </Section>
     </PolicyPage>

@@ -4,6 +4,7 @@ import { Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
+import { PasswordInput } from "@/components/PasswordInput";
 import { getSupabase } from "@/lib/supabase/client";
 
 function siteUrl() {
@@ -19,7 +20,8 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  // Surface auth-callback errors (expired confirmation links etc.)
+  const [error, setError] = useState<string | null>(params.get("error"));
   const [notice, setNotice] = useState<string | null>(null);
 
   async function submit(event: React.FormEvent) {
@@ -108,15 +110,19 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
             />
           </div>
           <div>
-            <label className="mb-1.5 block text-xs font-medium text-muted">Password</label>
-            <input
-              type="password"
-              required
-              minLength={8}
-              className="input"
+            <div className="mb-1.5 flex items-center justify-between">
+              <label className="block text-xs font-medium text-muted">Password</label>
+              {mode === "login" && (
+                <Link href="/forgot-password" className="text-xs text-accent">
+                  Forgot password?
+                </Link>
+              )}
+            </div>
+            <PasswordInput
               value={password}
-              onChange={(event) => setPassword(event.target.value)}
+              onChange={setPassword}
               placeholder={mode === "signup" ? "At least 8 characters" : "••••••••"}
+              autoComplete={mode === "signup" ? "new-password" : "current-password"}
             />
           </div>
 

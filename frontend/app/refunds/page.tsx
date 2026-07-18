@@ -1,9 +1,12 @@
 import { PolicyPage, Section } from "@/components/PolicyPage";
-import { CONTACT_EMAIL, SITE_NAME } from "@/lib/site";
+import { SITE_NAME } from "@/lib/site";
+import { contactLine, getSiteSettings } from "@/lib/settings";
 
 export const metadata = { title: "Billing & Refunds" };
 
-export default function RefundsPage() {
+export default async function RefundsPage() {
+  const { footer } = await getSiteSettings();
+  const contact = contactLine(footer);
   return (
     <PolicyPage title="Billing & Refunds Policy">
       <Section heading="1. Plans and billing cycles">
@@ -30,7 +33,7 @@ export default function RefundsPage() {
         <p>
           <strong className="text-ink">First subscription, first 14 days.</strong>{" "}
           If you are new to a paid plan and it is not what you expected, email{" "}
-          {CONTACT_EMAIL} within 14 days of your first charge and we will
+          {contact} within 14 days of your first charge and we will
           refund it in full.
         </p>
         <p>
@@ -60,7 +63,7 @@ export default function RefundsPage() {
 
       <Section heading="5. Billing disputes">
         <p>
-          Contact us at {CONTACT_EMAIL} before opening a card dispute — we
+          Contact us at {contact} before opening a card dispute — we
           resolve most billing issues within two business days, which is
           faster than a chargeback for everyone involved.
         </p>

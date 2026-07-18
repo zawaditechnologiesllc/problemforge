@@ -1,7 +1,11 @@
 import { getAccessToken } from "@/lib/supabase/client";
 import type {
   ActiveLandscape,
+  AdminBlueprint,
+  AdminOverview,
+  AdminUser,
   ApiKey,
+  FooterSettingsData,
   BlueprintDetail,
   BlueprintSummary,
   CommunityMatch,
@@ -160,6 +164,90 @@ export function getFtoDownload(id: string) {
 export function retryFtoReport(id: string) {
   return request<{ queued: boolean }>(`/api/v1/fto/reports/${id}/retry`, {
     method: "POST",
+  });
+}
+
+// ---- Admin panel ----
+
+export function adminOverview() {
+  return request<AdminOverview>("/api/v1/admin/overview");
+}
+
+export function adminUsers(q?: string, offset = 0) {
+  const search = new URLSearchParams({ offset: String(offset) });
+  if (q) search.set("q", q);
+  return request<{ items: AdminUser[]; total: number }>(
+    `/api/v1/admin/users?${search.toString()}`
+  );
+}
+
+export function adminUpdateUser(
+  id: string,
+  body: { tier?: string; is_admin?: boolean }
+) {
+  return request<AdminUser>(`/api/v1/admin/users/${id}`, {
+    method: "PATCH",
+    body,
+  });
+}
+
+export function adminBlueprints(q?: string, offset = 0) {
+  const search = new URLSearchParams({ offset: String(offset) });
+  if (q) search.set("q", q);
+  return request<{ items: AdminBlueprint[]; total: number }>(
+    `/api/v1/admin/blueprints?${search.toString()}`
+  );
+}
+
+export function adminUpdateBlueprint(
+  id: string,
+  body: Partial<
+    Pick<
+      AdminBlueprint,
+      "title" | "domain" | "buildability_score" | "demand_signal_score" | "is_public"
+    >
+  >
+) {
+  return request<AdminBlueprint>(`/api/v1/admin/blueprints/${id}`, {
+    method: "PATCH",
+    body,
+  });
+}
+
+export function adminDeleteBlueprint(id: string) {
+  return request<{ deleted: boolean }>(`/api/v1/admin/blueprints/${id}`, {
+    method: "DELETE",
+  });
+}
+
+export function adminFtoReports() {
+  return request<{ items: (FtoReport & { user_id: string })[] }>(
+    "/api/v1/admin/fto-reports"
+  );
+}
+
+export function adminIngestionRuns() {
+  return request<{ items: Record<string, unknown>[] }>(
+    "/api/v1/admin/ingestion-runs"
+  );
+}
+
+export function adminRunTask(name: string) {
+  return request<{ started: string }>(`/api/v1/admin/tasks/${name}`, {
+    method: "POST",
+  });
+}
+
+export function fetchSiteSettings() {
+  return request<{ footer: FooterSettingsData }>("/api/v1/site-settings", {
+    auth: false,
+  });
+}
+
+export function adminSaveFooter(footer: FooterSettingsData) {
+  return request<{ footer: FooterSettingsData }>("/api/v1/admin/settings/footer", {
+    method: "PUT",
+    body: footer,
   });
 }
 
