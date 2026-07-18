@@ -1,11 +1,12 @@
-"""EPO Open Patent Services (OPS) source — European/international coverage.
+"""EPO Open Patent Services (OPS) source — European + DOCDB worldwide coverage.
 
 Register an app at https://developers.epo.org -> consumer key/secret ->
 EPO_OPS_KEY / EPO_OPS_SECRET. OAuth2 client-credentials flow.
 
 OPS is searched by publication date (publication lags filing by ~18 months),
-then every hit is filtered by its actual application date against the 20-year
-statutory term, so only verifiably public-domain patents come back.
+then every hit is filtered by its actual application date against the
+requested filing range — the base class applies the 20-year public-domain
+gate on top of that.
 """
 
 import base64
@@ -15,7 +16,7 @@ from datetime import date, timedelta
 import httpx
 
 from ...config import settings
-from .base import PatentSource, is_public_domain, twenty_years_ago
+from .base import PatentSource
 
 TOKEN_URL = "https://ops.epo.org/3.2/auth/accesstoken"
 SEARCH_URL = "https://ops.epo.org/3.2/rest-services/published-data/search/biblio"
@@ -62,21 +63,22 @@ class EPOSource(PatentSource):
         self._token_expires_at = time.time() + int(payload.get("expires_in", 1200))
         return self._token
 
-    async def fetch_expired_candidates(
+    async def fetch_by_filing_range(
         self,
-        days_window: int = 7,
+        lo: date,
+        hi: date,
         limit: int = 100,
+        jurisdiction: str | None = None,
         transport: httpx.AsyncBaseTransport | None = None,
     ) -> list[dict]:
         if not self.is_configured():
             raise RuntimeError("EPO_OPS_KEY / EPO_OPS_SECRET are not configured")
 
-        filing_lo, filing_hi = twenty_years_ago(days_window)
-        pub_lo = filing_lo + PUBLICATION_LAG
-        pub_hi = filing_hi + PUBLICATION_LAG
+        pub_lo = lo + PUBLICATION_LAG
+        pub_hi = hi + PUBLICATION_LAG
         cql = (
             f'pd within "{pub_lo.strftime("%Y%m%d")} {pub_hi.strftime("%Y%m%d")}"'
-            " and pn=EP"
+            f" and pn={jurisdiction or 'EP'}"
         )
         async with httpx.AsyncClient(timeout=60, transport=transport) as client:
             token = await self._access_token(client)
@@ -103,7 +105,7 @@ class EPOSource(PatentSource):
             doc = (wrapper or {}).get("exchange-document") or wrapper or {}
             if not isinstance(doc, dict):
                 continue
-            country = doc.get("@country") or "EP"
+            country = doc.get("@country") or jurisdiction or "EP"
             number = doc.get("@doc-number")
             kind = doc.get("@kind") or ""
             if not number:
@@ -117,6 +119,17 @@ class EPOSource(PatentSource):
                 if raw and len(raw) == 8:
                     filing_date = f"{raw[0:4]}-{raw[4:6]}-{raw[6:8]}"
                     break
+
+            # Publication-date search is approximate; keep only documents whose
+            # actual application date sits inside the requested filing range.
+            if not filing_date:
+                continue
+            try:
+                filed = date.fromisoformat(filing_date)
+            except ValueError:
+                continue
+            if not (lo <= filed <= hi):
+                continue
 
             title = None
             for entry in _as_list(biblio.get("invention-title")):
@@ -132,13 +145,6 @@ class EPOSource(PatentSource):
                     if abstract:
                         break
 
-            # Publication-date search is approximate; keep only patents whose
-            # actual application date has verifiably crossed the 20-year term.
-            # Gate on the filing date alone — never on a status we assign.
-            if not filing_date or not is_public_domain(
-                {"filing_date": filing_date, "legal_status": None}
-            ):
-                continue
             results.append(
                 {
                     "source": self.name,
@@ -146,7 +152,6 @@ class EPOSource(PatentSource):
                     "title": title or "Untitled patent",
                     "abstract": abstract,
                     "filing_date": filing_date,
-                    "legal_status": "Expired - statutory term (filed more than 20 years ago)",
                 }
             )
         return results

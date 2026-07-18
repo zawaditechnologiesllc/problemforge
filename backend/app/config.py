@@ -46,5 +46,16 @@ class Settings(BaseSettings):
     # Freedom-to-Operate reports
     fto_bucket: str = "fto-reports"  # private Supabase Storage bucket for PDFs
 
+    # Ingestion coverage
+    # Historical backfill floor: 1999 targets the internet-era patents this
+    # product mines (buildable with modern APIs); records exist back to ~1976
+    # if you want to go earlier.
+    ingest_backfill_start: str = "1999-01-01"
+
+    # Internal active-patent landscape corpus (never exposed to users; powers
+    # an aggregate caution signal in the Validator)
+    active_signal_enabled: bool = True
+    active_window_years: int = 5
+
 
 settings = Settings()

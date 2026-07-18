@@ -23,8 +23,10 @@ async def run_ingestion(days_window: int = 7, limit_per_source: int = 50) -> dic
         return totals
 
     for source in sources:
+        provider = source.provider()
+        run_label = f"{provider.name}:{source.region.code}" if provider else source.name
         run = (
-            db.table("ingestion_runs").insert({"source": source.name}).execute().data[0]
+            db.table("ingestion_runs").insert({"source": run_label}).execute().data[0]
         )
         stats = {"fetched": 0, "inserted": 0, "translated": 0, "failed": 0}
         notes: list[str] = []

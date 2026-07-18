@@ -14,7 +14,7 @@ import sys
 import httpx
 
 from app.config import settings
-from app.services.patent_sources import all_sources
+from app.services.patent_sources import all_sources, provider_sources
 
 _CREDENTIALS_HINT = {
     "uspto": "set USPTO_API_KEY (free key: patentsview.org/apis/keyrequest)",
@@ -34,6 +34,16 @@ async def check_source(source) -> tuple[str, str]:
         return ("FAIL", f"rejected the request: HTTP {exc.response.status_code}")
     except Exception as exc:
         return ("FAIL", f"query failed: {exc}")
+
+
+def region_summary() -> list[str]:
+    """One line per regional source showing which provider backs it."""
+    lines = []
+    for source in all_sources():
+        provider = source.provider()
+        status = f"via {provider.name}" if provider else "no provider configured"
+        lines.append(f"  {source.region.code:<3} {source.display_name:<22} {status}")
+    return lines
 
 
 async def check_llm() -> tuple[str, str]:
@@ -114,8 +124,8 @@ def check_stripe() -> tuple[str, str]:
 
 async def main_async() -> int:
     checks: list[tuple[str, tuple[str, str]]] = []
-    for source in all_sources():
-        checks.append((f"Patent source: {source.name}", await check_source(source)))
+    for provider in provider_sources():
+        checks.append((f"Provider: {provider.name}", await check_source(provider)))
     checks.append(("LLM translation", await check_llm()))
     checks.append(("Embeddings", await check_embeddings()))
     checks.append(("Supabase", check_supabase()))
@@ -129,7 +139,11 @@ async def main_async() -> int:
         if status == "FAIL":
             failed = True
     print("-" * 64)
-    print("Ingestion uses every configured source; at least one is required.")
+    print("Regional source routing (20 regions):")
+    for line in region_summary():
+        print(line)
+    print("-" * 64)
+    print("Any ONE global provider (Lens / BigQuery / EPO) lights up every region.")
     return 1 if failed else 0
 
 

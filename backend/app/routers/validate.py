@@ -6,8 +6,10 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from ..auth import current_user_optional
+from ..config import settings
 from ..db import get_db
 from ..services import llm
+from ..services.active import landscape_signal
 from ..services.usage import check_and_increment
 
 router = APIRouter(prefix="/api/v1", tags=["validator"])
@@ -82,4 +84,11 @@ async def validate_idea(
         match["similarity"] = round(max(0.0, min(1.0, float(raw))), 4)
 
     matches = [m for m in matches if m["similarity"] > 0.01]
-    return {"method": method, "matches": matches}
+
+    # Aggregate caution signal from the internal active-patent landscape.
+    # Deliberately non-identifying: a level and a generic note only.
+    active_landscape = None
+    if settings.active_signal_enabled and embedding is not None:
+        active_landscape = landscape_signal(db, embedding)
+
+    return {"method": method, "matches": matches, "active_landscape": active_landscape}

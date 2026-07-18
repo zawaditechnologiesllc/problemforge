@@ -2,12 +2,13 @@
 
 import asyncio
 import base64
+from datetime import timedelta
 
 import httpx
 import pytest
 
 from app.config import settings
-from app.services.patent_sources import EPOSource
+from app.services.patent_sources import EPOSource, twenty_years_ago
 
 
 def _exchange_document(number: str, filing_yyyymmdd: str) -> dict:
@@ -44,6 +45,11 @@ def test_oauth_search_and_filing_date_gate(monkeypatch):
     monkeypatch.setattr(settings, "epo_ops_secret", "consumer-secret")
     captured: dict = {}
 
+    # A filing inside this week's 20-years-ago discovery window
+    lo, hi = twenty_years_ago(7)
+    in_window = (hi - timedelta(days=2)).strftime("%Y%m%d")
+    in_window_iso = (hi - timedelta(days=2)).isoformat()
+
     def handler(request: httpx.Request) -> httpx.Response:
         if request.url.path.endswith("/auth/accesstoken"):
             captured["basic"] = request.headers.get("authorization")
@@ -59,7 +65,7 @@ def test_oauth_search_and_filing_date_gate(monkeypatch):
                     "ops:biblio-search": {
                         "ops:search-result": {
                             "exchange-documents": [
-                                _exchange_document("1500000", "20040610"),
+                                _exchange_document("1500000", in_window),
                                 # Filed too recently -> must be filtered out
                                 _exchange_document("2900000", "20150610"),
                             ]
@@ -86,25 +92,18 @@ def test_oauth_search_and_filing_date_gate(monkeypatch):
             "patent_number": "EP1500000A1",
             "title": "A useful device",
             "abstract": "Does something useful.",
-            "filing_date": "2004-06-10",
+            "filing_date": in_window_iso,
             "legal_status": "Expired - statutory term (filed more than 20 years ago)",
         }
     ]
 
 
-def test_registry_reports_configured_sources(monkeypatch):
-    from app.services.patent_sources import all_sources, enabled_sources
+def test_provider_registry(monkeypatch):
+    from app.services.patent_sources import provider_sources
 
-    monkeypatch.setattr(settings, "uspto_api_key", "x")
-    monkeypatch.setattr(settings, "google_service_account_json", "")
-    monkeypatch.setattr(settings, "lens_api_key", "y")
-    monkeypatch.setattr(settings, "epo_ops_key", "")
-    monkeypatch.setattr(settings, "epo_ops_secret", "")
-
-    assert [source.name for source in all_sources()] == [
+    assert [provider.name for provider in provider_sources()] == [
         "uspto",
         "bigquery",
         "lens",
         "epo",
     ]
-    assert [source.name for source in enabled_sources()] == ["uspto", "lens"]

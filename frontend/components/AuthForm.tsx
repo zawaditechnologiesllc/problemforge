@@ -129,6 +129,14 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
           </button>
         </form>
 
+        {mode === "signup" && (
+          <p className="mt-4 text-center text-xs leading-relaxed text-muted">
+            By creating an account you agree to the{" "}
+            <Link href="/terms" className="text-accent">Terms of Service</Link>{" "}
+            and <Link href="/privacy" className="text-accent">Privacy Policy</Link>.
+          </p>
+        )}
+
         <p className="mt-6 text-center text-sm text-muted">
           {mode === "login" ? (
             <>

@@ -3,19 +3,21 @@
 Auth: a GCP service account with the "BigQuery Job User" role. Put the full
 service-account JSON (one line) in GOOGLE_SERVICE_ACCOUNT_JSON. No Google SDK
 needed — we exchange a signed RS256 JWT for an access token and call the
-jobs.query REST endpoint directly. Queries the public
-`patents-public-data.patents.publications` dataset (querying is billed to
-your project; the dataset itself is free).
+jobs.query REST endpoint directly. The public
+`patents-public-data.patents.publications` dataset covers 100+ jurisdictions,
+so this provider backs many regional sources (querying is billed to your
+project; the dataset itself is free).
 """
 
 import json
 import time
+from datetime import date
 
 import httpx
 import jwt
 
 from ...config import settings
-from .base import PatentSource, twenty_years_ago
+from .base import PatentSource
 
 TOKEN_URL = "https://oauth2.googleapis.com/token"
 BIGQUERY_SCOPE = "https://www.googleapis.com/auth/bigquery"
@@ -27,7 +29,7 @@ SELECT
   (SELECT text FROM UNNEST(abstract_localized) WHERE language = 'en' LIMIT 1) AS abstract,
   filing_date
 FROM `patents-public-data.patents.publications`
-WHERE country_code = 'US'
+WHERE country_code = @cc
   AND filing_date BETWEEN @lo AND @hi
   AND filing_date > 0
 ORDER BY publication_number
@@ -80,10 +82,12 @@ class BigQuerySource(PatentSource):
         self._token_expires_at = time.time() + int(payload.get("expires_in", 3600))
         return self._token
 
-    async def fetch_expired_candidates(
+    async def fetch_by_filing_range(
         self,
-        days_window: int = 7,
+        lo: date,
+        hi: date,
         limit: int = 100,
+        jurisdiction: str | None = None,
         transport: httpx.AsyncBaseTransport | None = None,
     ) -> list[dict]:
         if not self.is_configured():
@@ -94,12 +98,12 @@ class BigQuerySource(PatentSource):
         if not project:
             raise RuntimeError("service account JSON is missing project_id")
 
-        lo, hi = twenty_years_ago(days_window)
         body = {
             "query": QUERY_SQL,
             "useLegacySql": False,
             "parameterMode": "NAMED",
             "queryParameters": [
+                _str_param("cc", jurisdiction or "US"),
                 _int_param("lo", int(lo.strftime("%Y%m%d"))),
                 _int_param("hi", int(hi.strftime("%Y%m%d"))),
                 _int_param("lim", limit),
@@ -136,7 +140,6 @@ class BigQuerySource(PatentSource):
                     "title": cells[1] or "Untitled patent",
                     "abstract": cells[2],
                     "filing_date": filing_date,
-                    "legal_status": "Expired - statutory term (filed more than 20 years ago)",
                 }
             )
         return results
@@ -147,4 +150,12 @@ def _int_param(name: str, value: int) -> dict:
         "name": name,
         "parameterType": {"type": "INT64"},
         "parameterValue": {"value": str(value)},
+    }
+
+
+def _str_param(name: str, value: str) -> dict:
+    return {
+        "name": name,
+        "parameterType": {"type": "STRING"},
+        "parameterValue": {"value": value},
     }

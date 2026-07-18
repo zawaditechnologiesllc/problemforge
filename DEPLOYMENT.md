@@ -10,6 +10,9 @@ Each step produces values the next one needs.
 1. Create a project at [supabase.com](https://supabase.com) (any region).
 2. **SQL Editor** → paste and run, in order:
    - `supabase/migrations/20260717000001_init.sql`
+   - `supabase/migrations/20260717000002_enterprise_tier.sql`
+   - `supabase/migrations/20260717000003_fto_reports.sql`
+   - `supabase/migrations/20260717000004_global_sources_active_corpus.sql`
    - `supabase/seed.sql`
 3. **Project Settings → API** — note these values:
    - `Project URL` → `SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_URL`
@@ -62,7 +65,10 @@ Each step produces values the next one needs.
    | `EPO_OPS_KEY` / `EPO_OPS_SECRET` | optional — EPO OPS app credentials from [developers.epo.org](https://developers.epo.org), enables the EPO source |
 
    Patent sources activate automatically when their credentials are present;
-   ingestion needs at least one (USPTO recommended).
+   ingestion needs at least one. The 20 regional sources route through these
+   providers — credentials for any ONE global provider (Lens, BigQuery, or
+   EPO) light up every region; USPTO covers the US only. Recommended minimum:
+   `USPTO_API_KEY` + one global provider.
 
 4. Deploy. Note the service URL, e.g. `https://problemforge-api.onrender.com`.
    Check `https://problemforge-api.onrender.com/healthz` returns `{"status":"ok"}`.
@@ -113,10 +119,24 @@ From any machine with the backend env vars set (or Render's Shell tab):
 
 ```bash
 cd backend
-python -m worker.check_sources         # live-verify all 4 patent sources + LLM + embeddings + DB + Stripe prices
+python -m worker.check_sources         # live-verify providers + 20-region routing + LLM + embeddings + DB + Stripe
 python -m worker.backfill_embeddings   # embed seed blueprints → vector Validator
-python -m worker.ingest                # first live ingestion pass across all configured sources
+python -m worker.ingest                # first weekly-style pass across all configured regions
+python -m worker.backfill_history      # populate history: 1999 → the 20-year boundary (resumable; run in chunks)
+python -m worker.ingest_active         # build the internal active-landscape corpus (Validator caution signal)
 ```
+
+Backfill tips: `worker.backfill_history` walks month-sized windows per region
+and skips anything already ingested, so you can run it in sessions
+(`--start 2003-01 --end 2004-12 --regions us,ep`) or let it run end-to-end.
+Budget LLM spend accordingly — each new patent costs one translation call.
+
+### Before you announce launch
+
+- Set your real support email + company name in `frontend/lib/site.ts`
+  (used by /terms, /privacy, /refunds, /acceptable-use, /disclaimer) and
+  have counsel review those pages.
+- Confirm the policy pages render at their URLs and appear in the footer.
 
 ## Smoke checklist
 
@@ -131,5 +151,7 @@ python -m worker.ingest                # first live ingestion pass across all co
 - [ ] Master prompt visible + copyable on a paid account
 - [ ] Pro account can create an API key and `curl -H "X-API-Key: pf_live_..." $API/api/v1/blueprints`
 - [ ] Enterprise account shows Unlimited usage bars and can download the CSV export
-- [ ] `python -m worker.check_sources` passes on Render (all configured data sources live)
+- [ ] `python -m worker.check_sources` passes on Render (providers live; region routing shows all 20)
 - [ ] API responses include security headers; burst traffic gets HTTP 429
+- [ ] Policy pages live at /terms, /privacy, /refunds, /acceptable-use, /disclaimer with your real contact email
+- [ ] After `worker.ingest_active` runs: validator on a very current idea (e.g. "AI agent that books restaurant reservations") shows the landscape caution; blueprint pages still show only expired patents

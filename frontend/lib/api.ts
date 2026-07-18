@@ -1,5 +1,6 @@
 import { getAccessToken } from "@/lib/supabase/client";
 import type {
+  ActiveLandscape,
   ApiKey,
   BlueprintDetail,
   BlueprintSummary,
@@ -106,10 +107,11 @@ export function unsaveBlueprint(id: string) {
 }
 
 export function validateIdea(idea: string) {
-  return request<{ method: string; matches: ValidatorMatch[] }>(
-    "/api/v1/validate",
-    { method: "POST", body: { idea } }
-  );
+  return request<{
+    method: string;
+    matches: ValidatorMatch[];
+    active_landscape: ActiveLandscape | null;
+  }>("/api/v1/validate", { method: "POST", body: { idea } });
 }
 
 export function getMe() {

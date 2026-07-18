@@ -58,8 +58,9 @@ services:
       - key: EPO_OPS_SECRET
         sync: false # EPO OPS consumer secret (optional source)
 
-  # Weekly ingestion: pulls newly public-domain patents, translates them into
-  # blueprints with the LLM pipeline, generates embeddings, inserts rows.
+  # Weekly ingestion: pulls newly public-domain patents across all configured
+  # regional sources, translates them into blueprints with the LLM pipeline,
+  # generates embeddings, inserts rows.
   # Cron jobs require a paid Render plan — the app works fine without this
   # (seeded data + manual runs of `python -m worker.ingest`).
   - type: cron
@@ -77,6 +78,36 @@ services:
       - key: SUPABASE_SERVICE_ROLE_KEY
         sync: false
       - key: LLM_API_KEY
+        sync: false
+      - key: EMBEDDINGS_API_KEY
+        sync: false
+      - key: USPTO_API_KEY
+        sync: false
+      - key: GOOGLE_SERVICE_ACCOUNT_JSON
+        sync: false
+      - key: LENS_API_KEY
+        sync: false
+      - key: EPO_OPS_KEY
+        sync: false
+      - key: EPO_OPS_SECRET
+        sync: false
+
+  # Monthly refresh of the internal active-patent landscape corpus that powers
+  # the Validator's aggregate caution signal. Internal-only data — never
+  # published to users.
+  - type: cron
+    name: problemforge-active-landscape
+    runtime: python
+    rootDir: backend
+    schedule: "0 7 1 * *" # 1st of the month, 07:00 UTC
+    buildCommand: pip install -r requirements.txt
+    startCommand: python -m worker.ingest_active
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
         sync: false
       - key: EMBEDDINGS_API_KEY
         sync: false

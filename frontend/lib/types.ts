@@ -27,6 +27,11 @@ export interface BlueprintDetail extends BlueprintSummary {
   } | null;
 }
 
+export interface ActiveLandscape {
+  level: "none" | "elevated" | "high";
+  note?: string;
+}
+
 export interface ValidatorMatch {
   id: string;
   title: string;

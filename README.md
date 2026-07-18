@@ -35,19 +35,65 @@ Expired patent → AI translation → Idea Blueprint → "Copy Master Prompt" �
                           (subscriptions + $99 one-time FTO reports → PDF)
 ```
 
-### Patent data sources
+### Patent data sources — 20 regions, 4 providers
 
-| Source | Module | Credentials (env) |
-|---|---|---|
-| USPTO (PatentsView) — primary | `patent_sources/uspto.py` | `USPTO_API_KEY` ([free key](https://patentsview.org/apis/keyrequest)) |
-| Google Patents Public Data (BigQuery) | `patent_sources/bigquery.py` | `GOOGLE_SERVICE_ACCOUNT_JSON` (BigQuery Job User role) |
-| Lens.org | `patent_sources/lens.py` | `LENS_API_KEY` |
-| EPO Open Patent Services | `patent_sources/epo.py` | `EPO_OPS_KEY` + `EPO_OPS_SECRET` |
+Very few national patent offices expose practical public APIs, so the source
+layer has two levels. **Providers** are the adapters that speak to real
+external APIs; **regional sources** are 20 jurisdiction-scoped sources that
+route to the best configured provider for that region, with automatic
+fallback:
 
-Each source implements the same `PatentSource` interface and returns the same
-normalized shape; ingestion iterates every configured source and dedupes on
-patent number. A source with no credentials is skipped. All candidates pass
-the app-level public-domain check **and** the database trigger gate.
+| Provider | Module | Credentials (env) | Coverage |
+|---|---|---|---|
+| USPTO (PatentsView) | `patent_sources/uspto.py` | `USPTO_API_KEY` ([free key](https://patentsview.org/apis/keyrequest)) | US |
+| Google Patents Public Data (BigQuery) | `patent_sources/bigquery.py` | `GOOGLE_SERVICE_ACCOUNT_JSON` (BigQuery Job User role) | 100+ jurisdictions |
+| Lens.org | `patent_sources/lens.py` | `LENS_API_KEY` | 100+ jurisdictions |
+| EPO Open Patent Services (DOCDB) | `patent_sources/epo.py` | `EPO_OPS_KEY` + `EPO_OPS_SECRET` | Europe + worldwide |
+
+**The 20 regions** (`patent_sources/regions.py`): US, Europe (EPO-wide), UK,
+Germany, France, Netherlands, Sweden, Japan, South Korea, China, Taiwan,
+Canada, Australia, New Zealand, India, Singapore, Israel, Brazil, Mexico,
+South Africa — the major innovation economies plus the emerging startup
+markets where building from public-domain engineering has the most leverage.
+Credentials for **any one** global provider (Lens, BigQuery, or EPO) light up
+all 20 regions at once; US prefers PatentsView and Europe prefers EPO OPS
+when those are configured.
+
+Ingestion iterates every enabled regional source, stamps each patent with its
+jurisdiction, and dedupes on patent number. All candidates pass the
+app-level public-domain check **and** the database trigger gate.
+
+### Ingestion coverage: 1999 → the 20-year boundary
+
+Two ingestion modes share the same pipeline:
+
+- **Weekly cron** (`worker/ingest.py`) — picks up filings that crossed the
+  20-year statutory boundary in the last week, across all regions.
+- **Historical backfill** (`worker/backfill_history.py`) — walks the entire
+  eligible range in month-sized chunks per region: from
+  `INGEST_BACKFILL_START` (default **1999-01-01**, the start of the
+  internet-era patents this product mines) up to today minus 20 years.
+  Idempotent and resumable — rerun it and it continues where the data left
+  off. Patent records exist back to ~1976 if you want an earlier floor.
+
+### Internal active-patent landscape (Validator signal)
+
+A separate, **internal-only** corpus (`active_patents`) of recent, active-era
+filings powers an aggregate caution signal in the Validator: when a
+submitted idea is highly similar to recent filings, the user sees a generic
+"recent patent-landscape activity detected" note advising a professional
+prior-art search. Hard boundaries, by design:
+
+- Never joined to blueprints — the public-domain trigger gate is untouched,
+  so nothing in this corpus can ever surface as a blueprint.
+- No API endpoint returns its rows; the similarity RPC returns ids +
+  scores only and is not executable by client roles.
+- Users see only the aggregate level and note — never patent numbers,
+  titles, or any identifying detail.
+- Toggle the user-facing note with `ACTIVE_SIGNAL_ENABLED`.
+
+Refresh it monthly with `python -m worker.ingest_active` (cron included in
+`render.yaml`).
 
 ## Features
 
@@ -143,9 +189,11 @@ Optional workers (need at least one patent-source credential, plus
 
 ```bash
 cd backend
-python -m worker.check_sources         # live-diagnose all 4 sources + LLM + Stripe + DB
+python -m worker.check_sources         # diagnose 4 providers + 20-region routing + LLM + Stripe + DB
 python -m worker.backfill_embeddings   # embed the seed blueprints (enables vector Validator)
-python -m worker.ingest                # one ingestion pass across all configured sources
+python -m worker.ingest                # one weekly-style pass across all configured regions
+python -m worker.backfill_history      # full 1999 -> 20-year-boundary backfill (resumable)
+python -m worker.ingest_active         # refresh the internal active-landscape corpus
 ```
 
 Backend tests (all 4 source adapters, FTO verification + PDF, parser, tiers):
@@ -161,10 +209,18 @@ pytest
 Step-by-step instructions for Supabase → Render → Vercel → Stripe are in
 **[DEPLOYMENT.md](./DEPLOYMENT.md)**.
 
+## Policy pages
+
+The frontend ships complete, product-specific policy pages, linked from the
+footer and the signup flow: `/terms`, `/privacy`, `/refunds`,
+`/acceptable-use`, `/disclaimer`. Before launch, set your real contact email
+and operating entity in `frontend/lib/site.ts` and have counsel review the
+pages — they are a strong starting point, not legal advice.
+
 ## Notes
 
 - Seed blueprints are hand-curated examples of the 20+ year-old patent era
-  this product mines; live USPTO ingestion replaces/augments them.
+  this product mines; live ingestion replaces/augments them.
 - Model strings (`TRANSLATOR_MODEL`, `CODER_MODEL`, `EMBEDDING_MODEL`) are env
   config — swapping providers through an OpenAI-compatible aggregator is a
   one-line change.

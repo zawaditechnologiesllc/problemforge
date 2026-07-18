@@ -1,11 +1,11 @@
 "use client";
 
-import { ArrowRight, Loader2, ShieldCheck } from "lucide-react";
+import { AlertTriangle, ArrowRight, Loader2, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { DomainBadge } from "@/components/Badges";
 import { validateIdea } from "@/lib/api";
-import type { ValidatorMatch } from "@/lib/types";
+import type { ActiveLandscape, ValidatorMatch } from "@/lib/types";
 
 function SimilarityBar({ value }: { value: number }) {
   const pct = Math.round(value * 100);
@@ -30,6 +30,7 @@ export default function ValidatorPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [matches, setMatches] = useState<ValidatorMatch[] | null>(null);
+  const [landscape, setLandscape] = useState<ActiveLandscape | null>(null);
 
   async function run(event: React.FormEvent) {
     event.preventDefault();
@@ -37,9 +38,11 @@ export default function ValidatorPage() {
     setLoading(true);
     setError(null);
     setMatches(null);
+    setLandscape(null);
     try {
       const result = await validateIdea(idea.trim());
       setMatches(result.matches);
+      setLandscape(result.active_landscape ?? null);
     } catch (err: any) {
       setError(err?.message ?? "Validation failed. Try again.");
     } finally {
@@ -90,6 +93,20 @@ export default function ValidatorPage() {
       {error && (
         <div className="card mt-8 border-red-400/30 p-5 text-sm text-red-300">
           {error}
+        </div>
+      )}
+
+      {landscape && landscape.level !== "none" && landscape.note && (
+        <div className="card mt-8 flex items-start gap-3 border-accent/40 bg-accent-soft p-5">
+          <AlertTriangle size={18} className="mt-0.5 flex-none text-accent" />
+          <div>
+            <p className="text-sm font-semibold text-accent">
+              Recent patent-landscape activity detected
+            </p>
+            <p className="mt-1 text-sm leading-relaxed text-ink/90">
+              {landscape.note}
+            </p>
+          </div>
         </div>
       )}
 

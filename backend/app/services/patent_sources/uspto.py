@@ -1,15 +1,16 @@
-"""USPTO source via the PatentsView search API (primary MVP source).
+"""USPTO source via the PatentsView search API (primary US source).
 
 Free API key: https://patentsview.org/apis/keyrequest -> USPTO_API_KEY.
 """
 
 import json
 import re
+from datetime import date
 
 import httpx
 
 from ...config import settings
-from .base import PatentSource, twenty_years_ago
+from .base import PatentSource
 
 PATENTSVIEW_URL = "https://search.patentsview.org/api/v1/patent/"
 
@@ -28,16 +29,17 @@ class USPTOSource(PatentSource):
     def is_configured(self) -> bool:
         return bool(settings.uspto_api_key)
 
-    async def fetch_expired_candidates(
+    async def fetch_by_filing_range(
         self,
-        days_window: int = 7,
+        lo: date,
+        hi: date,
         limit: int = 100,
+        jurisdiction: str | None = None,  # US-only source; ignored
         transport: httpx.AsyncBaseTransport | None = None,
     ) -> list[dict]:
         if not self.is_configured():
             raise RuntimeError("USPTO_API_KEY is not configured")
 
-        lo, hi = twenty_years_ago(days_window)
         query = {
             "_and": [
                 {"_gte": {"patent_earliest_application_date": lo.isoformat()}},
@@ -66,7 +68,6 @@ class USPTOSource(PatentSource):
                     "title": p.get("patent_title") or "Untitled patent",
                     "abstract": p.get("patent_abstract"),
                     "filing_date": p.get("patent_earliest_application_date"),
-                    "legal_status": "Expired - statutory term (filed more than 20 years ago)",
                 }
             )
         return results

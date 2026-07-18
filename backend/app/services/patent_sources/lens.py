@@ -1,12 +1,14 @@
-"""Lens.org patent source (broad global coverage, enrichment).
+"""Lens.org patent source (broad global coverage — backs most regional sources).
 
 API token: https://www.lens.org/lens/user/subscriptions -> LENS_API_KEY.
 """
 
+from datetime import date
+
 import httpx
 
 from ...config import settings
-from .base import PatentSource, twenty_years_ago
+from .base import PatentSource
 
 LENS_SEARCH_URL = "https://api.lens.org/patent/search"
 
@@ -28,21 +30,22 @@ class LensSource(PatentSource):
     def is_configured(self) -> bool:
         return bool(settings.lens_api_key)
 
-    async def fetch_expired_candidates(
+    async def fetch_by_filing_range(
         self,
-        days_window: int = 7,
+        lo: date,
+        hi: date,
         limit: int = 100,
+        jurisdiction: str | None = None,
         transport: httpx.AsyncBaseTransport | None = None,
     ) -> list[dict]:
         if not self.is_configured():
             raise RuntimeError("LENS_API_KEY is not configured")
 
-        lo, hi = twenty_years_ago(days_window)
         body = {
             "query": {
                 "bool": {
                     "must": [
-                        {"term": {"jurisdiction": "US"}},
+                        {"term": {"jurisdiction": jurisdiction or "US"}},
                         {
                             "range": {
                                 "earliest_claim_date": {
@@ -80,24 +83,24 @@ class LensSource(PatentSource):
             doc_number = item.get("doc_number")
             if not doc_number:
                 continue
-            jurisdiction = item.get("jurisdiction") or "US"
+            item_jurisdiction = item.get("jurisdiction") or jurisdiction or "US"
             kind = item.get("kind") or ""
+            record = {
+                "source": self.name,
+                "patent_number": f"{item_jurisdiction}{doc_number}{kind}",
+                "title": _first_english(
+                    (item.get("biblio") or {}).get("invention_title")
+                )
+                or "Untitled patent",
+                "abstract": _first_english(item.get("abstract")),
+                "filing_date": item.get("earliest_claim_date"),
+            }
+            # Pass through the SOURCE's own expiry status when it has one —
+            # the base class gates on it; we never stamp expiry ourselves here.
             source_status = (item.get("legal_status") or {}).get("patent_status")
             if source_status and source_status.upper() in ("EXPIRED", "LAPSED", "CEASED"):
-                legal_status = f"Expired - {source_status.lower()} (Lens.org legal status)"
-            else:
-                legal_status = "Expired - statutory term (filed more than 20 years ago)"
-            results.append(
-                {
-                    "source": self.name,
-                    "patent_number": f"{jurisdiction}{doc_number}{kind}",
-                    "title": _first_english(
-                        (item.get("biblio") or {}).get("invention_title")
-                    )
-                    or "Untitled patent",
-                    "abstract": _first_english(item.get("abstract")),
-                    "filing_date": item.get("earliest_claim_date"),
-                    "legal_status": legal_status,
-                }
-            )
+                record["legal_status"] = (
+                    f"Expired - {source_status.lower()} (Lens.org legal status)"
+                )
+            results.append(record)
         return results

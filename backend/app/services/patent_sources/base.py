@@ -1,10 +1,19 @@
-"""Common interface + public-domain helpers shared by all patent sources."""
+"""Common interface + public-domain helpers shared by all patent sources.
+
+Providers implement `fetch_by_filing_range` (raw filing-date-range search).
+The base class turns that into `fetch_expired_candidates` by applying the
+20-year statutory window and the public-domain gate — so the gate logic lives
+in exactly one place and can never be short-circuited by a status string a
+provider assigns itself.
+"""
 
 import re
 from abc import ABC, abstractmethod
 from datetime import date, timedelta
 
 import httpx
+
+STATUTORY_EXPIRED_STATUS = "Expired - statutory term (filed more than 20 years ago)"
 
 
 def twenty_years_ago(days_window: int) -> tuple[date, date]:
@@ -49,13 +58,44 @@ class PatentSource(ABC):
         """True when the credentials this source needs are present."""
 
     @abstractmethod
+    async def fetch_by_filing_range(
+        self,
+        lo: date,
+        hi: date,
+        limit: int = 100,
+        jurisdiction: str | None = None,
+        transport: httpx.AsyncBaseTransport | None = None,
+    ) -> list[dict]:
+        """Raw filing-date-range search. No expiry semantics — just the range.
+
+        Used directly by the historical backfill and the internal active-
+        landscape corpus; `transport` lets tests inject an httpx.MockTransport.
+        """
+
     async def fetch_expired_candidates(
         self,
         days_window: int = 7,
         limit: int = 100,
+        jurisdiction: str | None = None,
         transport: httpx.AsyncBaseTransport | None = None,
     ) -> list[dict]:
-        """Return normalized candidates that have aged into the public domain.
-
-        `transport` lets tests inject an httpx.MockTransport.
-        """
+        """Normalized candidates that have verifiably aged into the public domain."""
+        lo, hi = twenty_years_ago(days_window)
+        rows = await self.fetch_by_filing_range(
+            lo, hi, limit=limit, jurisdiction=jurisdiction, transport=transport
+        )
+        results = []
+        for row in rows:
+            # Gate on provider-supplied facts only (filing date or a status the
+            # SOURCE reported) — never on a status we stamp ourselves.
+            if not is_public_domain(
+                {
+                    "filing_date": row.get("filing_date"),
+                    "legal_status": row.get("legal_status"),
+                }
+            ):
+                continue
+            if not row.get("legal_status"):
+                row["legal_status"] = STATUTORY_EXPIRED_STATUS
+            results.append(row)
+        return results
