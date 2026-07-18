@@ -59,6 +59,12 @@ services:
         sync: false # EPO OPS consumer secret (optional source)
       - key: REDIS_URL
         sync: false # optional cache (Upstash Redis / Render Key Value) — big LLM cost saver
+      - key: RESEND_API_KEY
+        sync: false # Resend API key for transactional email (see emails/README.md)
+      - key: EMAIL_FROM
+        sync: false # e.g. "ProblemForge <notifications@yourdomain.com>" — verified domain
+      - key: EMAIL_REPLY_TO
+        sync: false # optional support inbox for replies
 
   # Weekly ingestion: pulls newly public-domain patents across all configured
   # regional sources, translates them into blueprints with the LLM pipeline,

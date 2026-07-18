@@ -12,7 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .config import settings
 from .middleware import RateLimitMiddleware, SecurityHeadersMiddleware
-from .routers import account, admin, billing, blueprints, fto, validate
+from .routers import account, admin, billing, blueprints, fto, support, validate
 
 logging.basicConfig(
     level=logging.INFO,
@@ -47,6 +47,8 @@ app.include_router(account.router)
 app.include_router(fto.router)
 app.include_router(admin.router)
 app.include_router(admin.public_router)
+app.include_router(support.router)
+app.include_router(support.admin_router)
 
 
 @app.get("/healthz")

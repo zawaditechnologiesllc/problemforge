@@ -182,6 +182,31 @@ export interface FooterSettingsData {
   links: { label: string; url: string }[];
 }
 
+export interface SupportMessage {
+  id: string;
+  sender: "user" | "admin";
+  body: string;
+  created_at: string;
+  read_at: string | null;
+}
+
+export interface SupportThreadInfo {
+  id: string;
+  status: "open" | "closed";
+}
+
+export interface AdminSupportThread {
+  id: string;
+  user_id: string;
+  email: string | null;
+  tier: string;
+  subject: string | null;
+  status: "open" | "closed";
+  unread: number;
+  created_at: string;
+  last_message_at: string;
+}
+
 export interface ApiKey {
   id: string;
   name: string;

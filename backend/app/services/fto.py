@@ -244,6 +244,29 @@ async def generate_report(report_id: str) -> None:
                 "error": None,
             }
         ).eq("id", report_id).execute()
+
+        # Deliver the good news (best-effort; report is downloadable either way).
+        from . import email as email_service
+
+        profile = (
+            db.table("profiles")
+            .select("email")
+            .eq("id", report["user_id"])
+            .limit(1)
+            .execute()
+            .data
+        )
+        if profile and profile[0].get("email"):
+            await email_service.send_email(
+                profile[0]["email"],
+                f"Your Freedom-to-Operate report for {report['patent_number']} is ready",
+                "Your FTO report is ready",
+                [
+                    f"The Freedom-to-Operate report for patent {report['patent_number']} has been generated.",
+                    "Download the PDF from your account dashboard. Reminder: it is an AI-generated informational summary, not legal advice.",
+                ],
+                cta=("Download your report", f"{settings.frontend_url}/account?fto=success"),
+            )
     except Exception as exc:
         db.table("fto_reports").update(
             {"status": "failed", "error": str(exc)[:1000]}

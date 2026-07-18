@@ -61,6 +61,13 @@ class Settings(BaseSettings):
     # old.reddit.com and Quora search pages — no API keys involved.
     demand_signals_enabled: bool = True
 
+    # Transactional email via Resend (FTO-ready notices, support replies).
+    # Auth emails (confirmation/reset) are sent by Supabase through Resend
+    # SMTP — see emails/README.md for that setup.
+    resend_api_key: str = ""
+    email_from: str = ""      # e.g. "ProblemForge <notifications@yourdomain.com>" (verified domain)
+    email_reply_to: str = ""  # optional, e.g. your support inbox
+
     # Internal active-patent landscape corpus (never exposed to users; powers
     # an aggregate caution signal in the Validator)
     active_signal_enabled: bool = True

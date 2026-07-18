@@ -5,8 +5,10 @@ import {
   FileText,
   LayoutDashboard,
   Loader2,
+  MessageCircle,
   PanelBottom,
   Play,
+  Send,
   Trash2,
   Users as UsersIcon,
   type LucideIcon,
@@ -21,6 +23,10 @@ import {
   adminOverview,
   adminRunTask,
   adminSaveFooter,
+  adminSupportReply,
+  adminSupportSetStatus,
+  adminSupportThread,
+  adminSupportThreads,
   adminUpdateBlueprint,
   adminUpdateUser,
   adminUsers,
@@ -30,16 +36,26 @@ import {
 import type {
   AdminBlueprint,
   AdminOverview,
+  AdminSupportThread,
   AdminUser,
   FooterSettingsData,
   FtoReport,
+  SupportMessage,
 } from "@/lib/types";
 import clsx from "clsx";
 
-type Tab = "overview" | "blueprints" | "users" | "fto" | "ops" | "footer";
+type Tab =
+  | "overview"
+  | "messages"
+  | "blueprints"
+  | "users"
+  | "fto"
+  | "ops"
+  | "footer";
 
 const tabs: { id: Tab; label: string; icon: LucideIcon }[] = [
   { id: "overview", label: "Overview", icon: LayoutDashboard },
+  { id: "messages", label: "Messages", icon: MessageCircle },
   { id: "blueprints", label: "Blueprints", icon: Database },
   { id: "users", label: "Users", icon: UsersIcon },
   { id: "fto", label: "FTO Reports", icon: FileText },
@@ -79,6 +95,11 @@ export default function AdminPage() {
   const [runs, setRuns] = useState<Record<string, unknown>[]>([]);
   const [footer, setFooter] = useState<FooterSettingsData | null>(null);
   const [query, setQuery] = useState("");
+  const [threads, setThreads] = useState<AdminSupportThread[]>([]);
+  const [threadFilter, setThreadFilter] = useState<"open" | "closed" | "all">("open");
+  const [activeThread, setActiveThread] = useState<AdminSupportThread | null>(null);
+  const [threadMessages, setThreadMessages] = useState<SupportMessage[]>([]);
+  const [reply, setReply] = useState("");
 
   useEffect(() => {
     getMe()
@@ -103,9 +124,24 @@ export default function AdminPage() {
         adminIngestionRuns().then((d) => setRuns(d.items)).catch(fail);
       if (which === "footer")
         fetchSiteSettings().then((d) => setFooter(d.footer)).catch(fail);
+      if (which === "messages")
+        adminSupportThreads(threadFilter).then((d) => setThreads(d.items)).catch(fail);
     },
-    []
+    [threadFilter]
   );
+
+  async function openThread(thread: AdminSupportThread) {
+    setActiveThread(thread);
+    try {
+      const data = await adminSupportThread(thread.id);
+      setThreadMessages(data.messages);
+      setThreads((current) =>
+        current.map((t) => (t.id === thread.id ? { ...t, unread: 0 } : t))
+      );
+    } catch (err: any) {
+      setError(err?.message ?? "Could not load thread");
+    }
+  }
 
   useEffect(() => {
     if (authorized) load(tab);
@@ -207,6 +243,155 @@ export default function AdminPage() {
                 </div>
               ))}
             </div>
+          </div>
+        </div>
+      )}
+
+      {tab === "messages" && (
+        <div className="gap-5 lg:grid lg:grid-cols-[300px_1fr]">
+          {/* Thread list */}
+          <div>
+            <div className="mb-3 flex gap-1">
+              {(["open", "closed", "all"] as const).map((filter) => (
+                <button
+                  key={filter}
+                  onClick={() => {
+                    setThreadFilter(filter);
+                    setActiveThread(null);
+                  }}
+                  className={clsx(
+                    "rounded-full border px-3 py-1 text-xs capitalize transition",
+                    threadFilter === filter
+                      ? "border-accent/50 bg-accent-soft text-accent"
+                      : "border-edge text-muted hover:text-ink"
+                  )}
+                >
+                  {filter}
+                </button>
+              ))}
+            </div>
+            <div className="card max-h-[520px] divide-y divide-edge overflow-y-auto">
+              {threads.map((thread) => (
+                <button
+                  key={thread.id}
+                  onClick={() => openThread(thread)}
+                  className={clsx(
+                    "block w-full p-3.5 text-left transition hover:bg-raised/50",
+                    activeThread?.id === thread.id && "bg-raised/60"
+                  )}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="truncate text-sm font-semibold">
+                      {thread.email ?? thread.user_id.slice(0, 8)}
+                    </p>
+                    {thread.unread > 0 && (
+                      <span className="flex h-5 min-w-5 flex-none items-center justify-center rounded-full bg-accent px-1 text-[11px] font-bold text-base">
+                        {thread.unread}
+                      </span>
+                    )}
+                  </div>
+                  <p className="mt-0.5 truncate text-xs text-muted">
+                    {thread.subject ?? "(no subject)"}
+                  </p>
+                  <p className="mt-0.5 text-[10px] text-muted">
+                    {thread.tier} · {new Date(thread.last_message_at).toLocaleString()}
+                  </p>
+                </button>
+              ))}
+              {threads.length === 0 && (
+                <p className="p-6 text-sm text-muted">No {threadFilter} conversations.</p>
+              )}
+            </div>
+          </div>
+
+          {/* Conversation */}
+          <div className="mt-5 lg:mt-0">
+            {!activeThread ? (
+              <div className="card flex h-full min-h-[240px] items-center justify-center p-8 text-sm text-muted">
+                Select a conversation to read and reply.
+              </div>
+            ) : (
+              <div className="card flex max-h-[560px] flex-col">
+                <div className="flex items-center justify-between border-b border-edge p-4">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold">
+                      {activeThread.email ?? activeThread.user_id}
+                    </p>
+                    <p className="text-xs text-muted">{activeThread.subject}</p>
+                  </div>
+                  <button
+                    className="btn-ghost flex-none px-3 py-1.5 text-xs"
+                    disabled={busy === "thread-status"}
+                    onClick={() =>
+                      act("thread-status", async () => {
+                        const next =
+                          activeThread.status === "open" ? "closed" : "open";
+                        await adminSupportSetStatus(activeThread.id, next);
+                        setActiveThread({ ...activeThread, status: next });
+                        load("messages");
+                      })
+                    }
+                  >
+                    {activeThread.status === "open" ? "Close" : "Reopen"}
+                  </button>
+                </div>
+                <div className="flex-1 space-y-3 overflow-y-auto p-4">
+                  {threadMessages.map((message) => (
+                    <div
+                      key={message.id}
+                      className={clsx(
+                        "max-w-[85%] rounded-xl px-3.5 py-2.5 text-sm leading-relaxed",
+                        message.sender === "admin"
+                          ? "ml-auto bg-accent-soft"
+                          : "bg-raised"
+                      )}
+                    >
+                      {message.body}
+                      <p className="mt-1 text-[10px] text-muted">
+                        {message.sender === "admin" ? "You · " : "User · "}
+                        {new Date(message.created_at).toLocaleString()}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+                <form
+                  className="flex gap-2 border-t border-edge p-3"
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    const body = reply.trim();
+                    if (!body) return;
+                    act("reply", async () => {
+                      const { message } = await adminSupportReply(
+                        activeThread.id,
+                        body
+                      );
+                      setThreadMessages((current) => [...current, message]);
+                      setReply("");
+                    });
+                  }}
+                >
+                  <input
+                    className="input flex-1 py-2"
+                    placeholder="Reply to the customer... (they also get an email)"
+                    value={reply}
+                    maxLength={2000}
+                    onChange={(event) => setReply(event.target.value)}
+                  />
+                  <button
+                    type="submit"
+                    disabled={busy === "reply" || !reply.trim()}
+                    className="btn-accent px-3 py-2"
+                    aria-label="Send reply"
+                  >
+                    {busy === "reply" ? (
+                      <Loader2 className="animate-spin" size={16} />
+                    ) : (
+                      <Send size={16} />
+                    )}
+                  </button>
+                </form>
+              </div>
+            )}
           </div>
         </div>
       )}

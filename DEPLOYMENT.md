@@ -15,6 +15,7 @@ Each step produces values the next one needs.
    - `supabase/migrations/20260717000004_global_sources_active_corpus.sql`
    - `supabase/migrations/20260718000005_playbooks_community.sql`
    - `supabase/migrations/20260718000006_admin_site_settings.sql`
+   - `supabase/migrations/20260718000007_support_email.sql`
    - `supabase/seed.sql`
 3. **Project Settings → API** — note these values:
    - `Project URL` → `SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_URL`
@@ -66,6 +67,7 @@ Each step produces values the next one needs.
    | `LENS_API_KEY` | optional — Lens.org API token, enables the Lens source |
    | `EPO_OPS_KEY` / `EPO_OPS_SECRET` | optional — EPO OPS app credentials from [developers.epo.org](https://developers.epo.org), enables the EPO source |
    | `REDIS_URL` | optional but recommended — cache for embeddings, framework analyses, and demand signals. Create a free [Upstash Redis](https://upstash.com) database (or a Render Key Value instance) and paste its `rediss://` URL |
+   | `RESEND_API_KEY` / `EMAIL_FROM` / `EMAIL_REPLY_TO` | transactional email (FTO-ready notices, support notifications). `EMAIL_FROM` must use your Resend-verified domain — full setup in `emails/README.md` |
 
    Patent sources activate automatically when their credentials are present;
    ingestion needs at least one. The 20 regional sources route through these
@@ -139,6 +141,16 @@ Budget LLM spend accordingly — each new patent costs one translation call;
 setting `REDIS_URL` first is recommended so embeddings and repeat lookups
 are cached.
 
+### Email (Resend) — auth templates + deliverability
+
+Follow **`emails/README.md`** end to end: verify your domain in Resend
+(DKIM/SPF/DMARC DNS records — the anti-spam foundation), point Supabase Auth
+at Resend SMTP (`smtp.resend.com`, username `resend`, password = API key),
+paste the five branded templates from `emails/` into Authentication → Email
+Templates, and set `RESEND_API_KEY`/`EMAIL_FROM` on Render for transactional
+mail. Finish by sending a test signup + reset to
+[mail-tester.com](https://www.mail-tester.com) and confirming a 9+/10 score.
+
 ### Grant yourself admin
 
 Sign up normally on the live site, then in the Supabase SQL editor:
@@ -186,3 +198,5 @@ on demand.
 - [ ] Sign-in/sign-up show the password visibility toggle; forgot-password sends a reset email and /reset-password accepts the new password; an expired link shows a friendly error on /login
 - [ ] `/admin` loads for the admin account (and redirects non-admins away); footer edits appear on the site within ~5 minutes
 - [ ] `curl https://your-domain/robots.txt`, `/sitemap.xml`, and `/llms.txt` all resolve; blueprint page HTML contains its title + JSON-LD without JavaScript
+- [ ] Signup confirmation and password-reset emails arrive branded and in the inbox (mail-tester 9+/10; Resend domain Verified)
+- [ ] Support chat: send a message from a test account → appears in Admin → Messages with an unread badge → reply → the widget shows it and the customer receives the notification email → Close thread works

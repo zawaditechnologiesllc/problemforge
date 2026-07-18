@@ -3,9 +3,12 @@ import type {
   ActiveLandscape,
   AdminBlueprint,
   AdminOverview,
+  AdminSupportThread,
   AdminUser,
   ApiKey,
   FooterSettingsData,
+  SupportMessage,
+  SupportThreadInfo,
   BlueprintDetail,
   BlueprintSummary,
   CommunityMatch,
@@ -248,6 +251,49 @@ export function adminSaveFooter(footer: FooterSettingsData) {
   return request<{ footer: FooterSettingsData }>("/api/v1/admin/settings/footer", {
     method: "PUT",
     body: footer,
+  });
+}
+
+// ---- Support chat ----
+
+export function getSupportThread(markRead = false) {
+  return request<{
+    thread: SupportThreadInfo | null;
+    messages: SupportMessage[];
+    unread: number;
+  }>(`/api/v1/support/thread${markRead ? "?mark_read=true" : ""}`);
+}
+
+export function sendSupportMessage(body: string) {
+  return request<{ message: SupportMessage; thread_id: string }>(
+    "/api/v1/support/messages",
+    { method: "POST", body: { body } }
+  );
+}
+
+export function adminSupportThreads(status: "open" | "closed" | "all" = "open") {
+  return request<{ items: AdminSupportThread[] }>(
+    `/api/v1/admin/support/threads?status=${status}`
+  );
+}
+
+export function adminSupportThread(id: string) {
+  return request<{ thread: AdminSupportThread; messages: SupportMessage[] }>(
+    `/api/v1/admin/support/threads/${id}`
+  );
+}
+
+export function adminSupportReply(id: string, body: string) {
+  return request<{ message: SupportMessage }>(
+    `/api/v1/admin/support/threads/${id}/reply`,
+    { method: "POST", body: { body } }
+  );
+}
+
+export function adminSupportSetStatus(id: string, status: "open" | "closed") {
+  return request<AdminSupportThread>(`/api/v1/admin/support/threads/${id}`, {
+    method: "PATCH",
+    body: { status },
   });
 }
 

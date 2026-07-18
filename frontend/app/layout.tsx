@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { Footer } from "@/components/Footer";
 import { Navbar } from "@/components/Navbar";
+import { SupportChat } from "@/components/SupportChat";
 import { OPERATOR_NAME, SITE_NAME, SITE_URL } from "@/lib/site";
 import "./globals.css";
 
@@ -77,6 +78,7 @@ export default function RootLayout({
         <Navbar />
         <main className="flex-1">{children}</main>
         <Footer />
+        <SupportChat />
       </body>
     </html>
   );
