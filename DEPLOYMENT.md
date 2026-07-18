@@ -63,6 +63,7 @@ Each step produces values the next one needs.
    | `GOOGLE_SERVICE_ACCOUNT_JSON` | optional — full GCP service-account JSON (one line) with the BigQuery Job User role, enables the Google Patents source |
    | `LENS_API_KEY` | optional — Lens.org API token, enables the Lens source |
    | `EPO_OPS_KEY` / `EPO_OPS_SECRET` | optional — EPO OPS app credentials from [developers.epo.org](https://developers.epo.org), enables the EPO source |
+   | `REDIS_URL` | optional but recommended — cache for embeddings, framework analyses, and demand signals. Create a free [Upstash Redis](https://upstash.com) database (or a Render Key Value instance) and paste its `rediss://` URL |
 
    Patent sources activate automatically when their credentials are present;
    ingestion needs at least one. The 20 regional sources route through these
@@ -126,10 +127,13 @@ python -m worker.backfill_history      # populate history: 1999 → the 20-year 
 python -m worker.ingest_active         # build the internal active-landscape corpus (Validator caution signal)
 ```
 
-Backfill tips: `worker.backfill_history` walks month-sized windows per region
-and skips anything already ingested, so you can run it in sessions
-(`--start 2003-01 --end 2004-12 --regions us,ep`) or let it run end-to-end.
-Budget LLM spend accordingly — each new patent costs one translation call.
+Backfill tips: `worker.backfill_history` covers the **entire public-domain
+record** (default floor 1790; year-sized windows before 1980, month-sized
+after) and skips anything already ingested, so you can run it in sessions
+(`--start 1995-01 --end 2004-12 --regions us,ep`) or let it run end-to-end.
+Budget LLM spend accordingly — each new patent costs one translation call;
+setting `REDIS_URL` first is recommended so embeddings and repeat lookups
+are cached.
 
 ### Before you announce launch
 
@@ -155,3 +159,5 @@ Budget LLM spend accordingly — each new patent costs one translation call.
 - [ ] API responses include security headers; burst traffic gets HTTP 429
 - [ ] Policy pages live at /terms, /privacy, /refunds, /acceptable-use, /disclaimer with your real contact email
 - [ ] After `worker.ingest_active` runs: validator on a very current idea (e.g. "AI agent that books restaurant reservations") shows the landscape caution; blueprint pages still show only expired patents
+- [ ] Validator shows the 5-pillar framework report and (when communities have relevant threads) the "Real questions from real people" list
+- [ ] Re-running the same validator idea is near-instant (cache hit — check Upstash/Render Key Value metrics)

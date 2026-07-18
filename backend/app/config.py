@@ -46,11 +46,20 @@ class Settings(BaseSettings):
     # Freedom-to-Operate reports
     fto_bucket: str = "fto-reports"  # private Supabase Storage bucket for PDFs
 
-    # Ingestion coverage
-    # Historical backfill floor: 1999 targets the internet-era patents this
-    # product mines (buildable with modern APIs); records exist back to ~1976
-    # if you want to go earlier.
-    ingest_backfill_start: str = "1999-01-01"
+    # Ingestion coverage — timeless. Any patent in the public domain
+    # qualifies regardless of age: a mechanism from the 1960s can still be the
+    # right solution today. The floor below is simply the start of US patent
+    # records; raise it if you want a narrower catalog.
+    ingest_backfill_start: str = "1790-01-01"
+
+    # Cache (cost saver). Set REDIS_URL for a shared, persistent cache —
+    # recommended: Upstash Redis (serverless free tier) or Render Key Value.
+    # Empty = in-process TTL cache (fine for dev / single instance).
+    redis_url: str = ""
+
+    # Community demand signals scraped (politely, cached 24h) from public
+    # old.reddit.com and Quora search pages — no API keys involved.
+    demand_signals_enabled: bool = True
 
     # Internal active-patent landscape corpus (never exposed to users; powers
     # an aggregate caution signal in the Validator)

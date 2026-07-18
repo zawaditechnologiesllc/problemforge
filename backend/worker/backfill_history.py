@@ -1,13 +1,16 @@
-"""Historical backfill: walk the full public-domain filing range.
+"""Historical backfill: walk the full public-domain filing range — timeless.
 
-Coverage runs from INGEST_BACKFILL_START (default 1999-01-01 — the internet
-era this product mines) up to today minus 20 years, in month-sized chunks per
-region. Idempotent: patents already ingested are skipped, so the job is
-resumable — rerun it and it continues where the data left off.
+Coverage runs from INGEST_BACKFILL_START (default 1790-01-01, the start of
+US patent records) up to today minus 20 years. Old does not mean obsolete: a
+mechanism patented in the 1960s can still be the right solution today, and
+everything in this range is public domain by definition. Pre-1980 filings are
+walked in year-sized windows (records are sparse), recent decades in
+month-sized windows. Idempotent: patents already ingested are skipped, so
+the job is resumable — rerun it and it continues where the data left off.
 
 Usage:
   python -m worker.backfill_history                       # full range, all regions
-  python -m worker.backfill_history --start 2003-01 --end 2004-12
+  python -m worker.backfill_history --start 1965-01 --end 1975-12
   python -m worker.backfill_history --regions us,ep,jp --per-window 25
 """
 
@@ -22,10 +25,13 @@ from app.services.patent_sources import enabled_sources, is_public_domain
 from app.db import get_db
 
 
-def _month_windows(start: date, end: date):
+def _windows(start: date, end: date):
+    """Year-sized windows before 1980 (sparse records), month-sized after."""
     cursor = start.replace(day=1)
     while cursor <= end:
-        if cursor.month == 12:
+        if cursor.year < 1980:
+            nxt = date(cursor.year + 1, 1, 1)
+        elif cursor.month == 12:
             nxt = cursor.replace(year=cursor.year + 1, month=1)
         else:
             nxt = cursor.replace(month=cursor.month + 1)
@@ -115,7 +121,7 @@ async def main_async(args) -> None:
     print(f"Backfilling {start} -> {end} across {len(sources)} region(s)")
     for source in sources:
         totals = {"fetched": 0, "inserted": 0, "translated": 0, "failed": 0}
-        for lo, hi in _month_windows(start, end):
+        for lo, hi in _windows(start, end):
             stats = await _process_window(source, lo, hi, args.per_window, db)
             for key in totals:
                 totals[key] += stats[key]

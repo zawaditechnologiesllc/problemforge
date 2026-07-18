@@ -63,9 +63,21 @@ async def chat(
 
 
 async def embed(text: str) -> list[float] | None:
-    """Return a 1536-dim embedding, or None when no embeddings key is set."""
+    """Return a 1536-dim embedding, or None when no embeddings key is set.
+
+    Cached 7 days by content hash — identical text always embeds identically,
+    so repeat Validator runs and re-processed phrases cost nothing.
+    """
     if not settings.embeddings_api_key:
         return None
+
+    from . import cache  # local import to avoid a cycle at module load
+
+    key = cache.hash_key("emb", f"{settings.embedding_model}:{text[:8000]}")
+    cached = await cache.get_json(key)
+    if cached is not None:
+        return cached
+
     async with httpx.AsyncClient(timeout=60) as client:
         resp = await client.post(
             f"{settings.embeddings_base_url}/embeddings",
@@ -73,7 +85,10 @@ async def embed(text: str) -> list[float] | None:
             json={"model": settings.embedding_model, "input": text[:8000]},
         )
         resp.raise_for_status()
-        return resp.json()["data"][0]["embedding"]
+        vector = resp.json()["data"][0]["embedding"]
+
+    await cache.set_json(key, vector, ttl_seconds=7 * 24 * 3600)
+    return vector
 
 
 def parse_blueprint_markdown(md: str) -> dict | None:

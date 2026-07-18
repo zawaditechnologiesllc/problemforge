@@ -63,18 +63,74 @@ Ingestion iterates every enabled regional source, stamps each patent with its
 jurisdiction, and dedupes on patent number. All candidates pass the
 app-level public-domain check **and** the database trigger gate.
 
-### Ingestion coverage: 1999 → the 20-year boundary
+### Ingestion coverage: timeless → the 20-year boundary
 
-Two ingestion modes share the same pipeline:
+Old does not mean obsolete — a mechanism patented in the 1960s can still be
+the right solution today (plenty of 1970s engineering still flies). The only
+hard boundary is legal, not chronological: a patent qualifies once it is in
+the public domain. Two ingestion modes share the same pipeline:
 
 - **Weekly cron** (`worker/ingest.py`) — picks up filings that crossed the
   20-year statutory boundary in the last week, across all regions.
 - **Historical backfill** (`worker/backfill_history.py`) — walks the entire
-  eligible range in month-sized chunks per region: from
-  `INGEST_BACKFILL_START` (default **1999-01-01**, the start of the
-  internet-era patents this product mines) up to today minus 20 years.
-  Idempotent and resumable — rerun it and it continues where the data left
-  off. Patent records exist back to ~1976 if you want an earlier floor.
+  eligible range from `INGEST_BACKFILL_START` (default **1790-01-01**, the
+  start of US patent records) up to today minus 20 years. Pre-1980 decades
+  are walked in year-sized windows (records are sparse), recent decades
+  month-sized. Idempotent and resumable — rerun it and it continues where
+  the data left off.
+
+### The 5-Point Validation Framework
+
+Every Validator run pressure-tests the idea against five pillars (inspired by
+[this validation framework](https://www.rapidnative.com/tools/app-idea-validator)),
+each scored 0–100 with a concrete recommendation:
+
+1. **Market Size** — are enough people actively searching for or discussing
+   the problem? Assessed by demographics, with the **best demographic to
+   target** named.
+2. **Competition** — do existing solutions have proven demand? Names the
+   **gaps to differentiate on**, grounded in real community questions.
+3. **Feasibility** — can an MVP ship in 2–3 months with no-code tools or a
+   small team? Includes the smallest shippable scope.
+4. **Monetization Potential** — is there a concrete revenue model?
+   **Recommends the best one** (e.g. subscription for ongoing value, premium
+   B2B pricing).
+5. **Uniqueness** — what makes it compelling? Better UX or a focused niche is
+   enough; it doesn't need to be a new invention.
+
+Implemented in `backend/app/services/framework.py`: LLM-generated
+(strict-JSON validated, graceful null when no LLM key), grounded in the
+expired-patent matches and community questions, and **cached 24h by idea
+hash** so repeat runs are free.
+
+### Community demand signals (no API keys)
+
+`backend/app/services/demand.py` collects **real questions real people ask**
+from public `old.reddit.com` and Quora search pages — plain HTTP with an
+honest User-Agent, one request per source per query, results cached 24 hours.
+They feed three places: the Validator's "Real questions from real people"
+list, the framework's Market Size / Competition evidence, and
+`demand_signal_score` on newly ingested blueprints. Both scrapers are
+best-effort by design (Quora frequently serves bots a login wall → empty
+result, never an error). Keep volume tiny and review each site's terms
+before scaling this up; set `DEMAND_SIGNALS_ENABLED=false` to turn it off.
+
+### Caching (cost control)
+
+`backend/app/services/cache.py` — automatic backend selection:
+
+- **Redis** when `REDIS_URL` is set. Recommended: **Upstash Redis**
+  (serverless, generous free tier, `rediss://` URL) or **Render Key Value**
+  (same-datacenter as the API). Cloudflare KV or Memcached work too if you
+  swap the client.
+- **In-process TTL cache** otherwise — zero setup for dev/single instance.
+
+What's cached: embeddings 7 days (identical text → identical vector; every
+repeat Validator run is a free API call), framework analyses 24h, demand
+signals 24h. Two further cost levers already in place: blueprints themselves
+are translated once and stored forever in Postgres (the DB is the ultimate
+cache), and the translator prompt shares a fixed system prefix so
+provider-side prompt caching (e.g. DeepSeek cache-hit pricing) applies.
 
 ### Internal active-patent landscape (Validator signal)
 
@@ -100,7 +156,7 @@ Refresh it monthly with `python -m worker.ingest_active` (cron included in
 - **Homepage** — hero, frustration-first search, category pills, featured blueprint cards
 - **Browse/Search** — filter sidebar (buildability slider, verified public-domain toggle, sort), responsive list view
 - **Blueprint detail** — four-section dashboard (Human Problem / Expired Logic / Build Plan / Master Prompt) with locked/blurred state for free users; locked content **never leaves the server**
-- **Validator ("Collision Checker")** — pgvector similarity search of your idea against every blueprint (trigram text fallback when no embeddings key is configured)
+- **Validator ("Collision Checker")** — pgvector similarity search of your idea against every blueprint (trigram text fallback when no embeddings key is configured), plus the **5-Point Validation Framework** and real community demand signals (below)
 - **Auth** — Supabase email/password + Google OAuth
 - **Billing** — Stripe Checkout + Customer Portal + webhooks driving `profiles.tier`
 - **Account dashboard** — usage meters, saved blueprints, API keys, billing management
@@ -192,7 +248,7 @@ cd backend
 python -m worker.check_sources         # diagnose 4 providers + 20-region routing + LLM + Stripe + DB
 python -m worker.backfill_embeddings   # embed the seed blueprints (enables vector Validator)
 python -m worker.ingest                # one weekly-style pass across all configured regions
-python -m worker.backfill_history      # full 1999 -> 20-year-boundary backfill (resumable)
+python -m worker.backfill_history      # timeless backfill -> the 20-year boundary (resumable)
 python -m worker.ingest_active         # refresh the internal active-landscape corpus
 ```
 

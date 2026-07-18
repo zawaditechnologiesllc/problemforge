@@ -32,6 +32,34 @@ export interface ActiveLandscape {
   note?: string;
 }
 
+export interface CommunityQuestion {
+  source: "reddit" | "quora";
+  title: string;
+  url: string;
+  community: string | null;
+  engagement: number | null;
+}
+
+export interface FrameworkPillar {
+  score: number;
+  assessment: string;
+  best_demographic?: string;
+  gaps?: string[];
+  mvp_scope?: string;
+  recommended_model?: string;
+  angle?: string;
+}
+
+export interface FrameworkAnalysis {
+  market_size: FrameworkPillar;
+  competition: FrameworkPillar;
+  feasibility: FrameworkPillar;
+  monetization: FrameworkPillar;
+  uniqueness: FrameworkPillar;
+  overall_score: number;
+  verdict: string;
+}
+
 export interface ValidatorMatch {
   id: string;
   title: string;

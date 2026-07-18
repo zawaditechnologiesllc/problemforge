@@ -4,8 +4,14 @@ import { AlertTriangle, ArrowRight, Loader2, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { DomainBadge } from "@/components/Badges";
+import { CommunityQuestions, FrameworkReport } from "@/components/FrameworkReport";
 import { validateIdea } from "@/lib/api";
-import type { ActiveLandscape, ValidatorMatch } from "@/lib/types";
+import type {
+  ActiveLandscape,
+  CommunityQuestion,
+  FrameworkAnalysis,
+  ValidatorMatch,
+} from "@/lib/types";
 
 function SimilarityBar({ value }: { value: number }) {
   const pct = Math.round(value * 100);
@@ -31,6 +37,8 @@ export default function ValidatorPage() {
   const [error, setError] = useState<string | null>(null);
   const [matches, setMatches] = useState<ValidatorMatch[] | null>(null);
   const [landscape, setLandscape] = useState<ActiveLandscape | null>(null);
+  const [framework, setFramework] = useState<FrameworkAnalysis | null>(null);
+  const [questions, setQuestions] = useState<CommunityQuestion[]>([]);
 
   async function run(event: React.FormEvent) {
     event.preventDefault();
@@ -39,10 +47,14 @@ export default function ValidatorPage() {
     setError(null);
     setMatches(null);
     setLandscape(null);
+    setFramework(null);
+    setQuestions([]);
     try {
       const result = await validateIdea(idea.trim());
       setMatches(result.matches);
       setLandscape(result.active_landscape ?? null);
+      setFramework(result.framework ?? null);
+      setQuestions(result.community_questions ?? []);
     } catch (err: any) {
       setError(err?.message ?? "Validation failed. Try again.");
     } finally {
@@ -58,12 +70,13 @@ export default function ValidatorPage() {
       <div className="text-center">
         <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
           Validate Your Idea Against{" "}
-          <span className="text-accent">20 Years of Expired Innovation.</span>
+          <span className="text-accent">Decades of Expired Innovation.</span>
         </h1>
         <p className="mx-auto mt-4 max-w-xl text-sm leading-relaxed text-muted sm:text-base">
-          Paste your app idea. We embed it and search every Idea Blueprint for
-          expired patents that already solved the same human problem — logic
-          you can legally borrow.
+          Paste your app idea. We search every Idea Blueprint for expired
+          patents that already solved the same human problem, pull real
+          questions people are asking about it today, and score it against the
+          5-Point Validation Framework.
         </p>
       </div>
 
@@ -181,6 +194,9 @@ export default function ValidatorPage() {
           )}
         </div>
       )}
+
+      {framework && <FrameworkReport framework={framework} />}
+      {matches && <CommunityQuestions questions={questions} />}
     </div>
   );
 }

@@ -57,6 +57,8 @@ services:
         sync: false # EPO OPS consumer key (optional source)
       - key: EPO_OPS_SECRET
         sync: false # EPO OPS consumer secret (optional source)
+      - key: REDIS_URL
+        sync: false # optional cache (Upstash Redis / Render Key Value) — big LLM cost saver
 
   # Weekly ingestion: pulls newly public-domain patents across all configured
   # regional sources, translates them into blueprints with the LLM pipeline,
@@ -90,6 +92,8 @@ services:
       - key: EPO_OPS_KEY
         sync: false
       - key: EPO_OPS_SECRET
+        sync: false
+      - key: REDIS_URL
         sync: false
 
   # Monthly refresh of the internal active-patent landscape corpus that powers

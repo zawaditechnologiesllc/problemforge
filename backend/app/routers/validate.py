@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field
 from ..auth import current_user_optional
 from ..config import settings
 from ..db import get_db
-from ..services import llm
+from ..services import demand, framework, llm
 from ..services.active import landscape_signal
 from ..services.usage import check_and_increment
 
@@ -91,4 +91,19 @@ async def validate_idea(
     if settings.active_signal_enabled and embedding is not None:
         active_landscape = landscape_signal(db, embedding)
 
-    return {"method": method, "matches": matches, "active_landscape": active_landscape}
+    # Real community questions (old.reddit + Quora, cached 24h) — the gaps
+    # people actually complain about — then the 5-Point Validation Framework
+    # analysis grounded in the matches + those questions (cached 24h).
+    try:
+        signals = await demand.gather_demand_signals(body.idea)
+    except Exception:
+        signals = {"questions": [], "score": None}
+    analysis = await framework.analyze_idea(body.idea, matches, signals["questions"])
+
+    return {
+        "method": method,
+        "matches": matches,
+        "active_landscape": active_landscape,
+        "community_questions": signals["questions"],
+        "framework": analysis,
+    }

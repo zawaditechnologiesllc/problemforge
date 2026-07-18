@@ -9,7 +9,7 @@ import asyncio
 from datetime import datetime, timezone
 
 from ..db import get_db
-from . import llm
+from . import demand, llm
 from .patent_sources import enabled_sources, is_public_domain
 
 
@@ -71,6 +71,13 @@ async def run_ingestion(days_window: int = 7, limit_per_source: int = 50) -> dic
                         continue
 
                     embedding = await llm.embed(blueprint["human_problem"])
+                    # Real-world demand signal from community questions
+                    # (best-effort, cached; None when nothing is found).
+                    try:
+                        signals = await demand.gather_demand_signals(candidate["title"])
+                        demand_signal = signals["score"]
+                    except Exception:
+                        demand_signal = None
                     db.table("blueprints").insert(
                         {
                             "raw_patent_id": raw["id"],
@@ -79,6 +86,7 @@ async def run_ingestion(days_window: int = 7, limit_per_source: int = 50) -> dic
                             "domain": domain,
                             **blueprint,
                             "buildability_score": 70,
+                            "demand_signal_score": demand_signal,
                             "embedding": embedding,
                         }
                     ).execute()
