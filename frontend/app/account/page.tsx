@@ -19,6 +19,7 @@ import { FtoPanel } from "@/components/FtoPanel";
 import {
   createApiKey,
   createCheckout,
+  deleteAccount,
   getMe,
   getSaved,
   listApiKeys,
@@ -482,6 +483,35 @@ function AccountContent() {
                   Subscriptions are handled securely by Stripe. Cancel anytime
                   from the billing portal.
                 </p>
+              </div>
+
+              <div className="card border-red-400/30 p-6">
+                <h2 className="font-semibold text-red-300">Delete account</h2>
+                <p className="mt-1.5 text-sm text-muted">
+                  Permanently deletes your account and data, and cancels any
+                  active subscription. This cannot be undone.
+                </p>
+                <button
+                  className="btn-ghost mt-4 border-red-400/40 text-red-300 hover:border-red-400"
+                  disabled={busy === "delete-account"}
+                  onClick={() => {
+                    const answer = window.prompt(
+                      'This permanently deletes your account, saved blueprints, reports, and cancels any subscription. Type "DELETE" to confirm.'
+                    );
+                    if (answer !== "DELETE") return;
+                    act("delete-account", async () => {
+                      await deleteAccount();
+                      const { getSupabase } = await import("@/lib/supabase/client");
+                      await getSupabase().auth.signOut();
+                      window.location.href = "/";
+                    });
+                  }}
+                >
+                  {busy === "delete-account" && (
+                    <Loader2 className="animate-spin" size={15} />
+                  )}
+                  Delete my account
+                </button>
               </div>
 
               {me.features.export && (

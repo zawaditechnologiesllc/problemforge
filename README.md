@@ -299,7 +299,12 @@ pytest
 ## Deploying
 
 Step-by-step instructions for Supabase → Render → Vercel → Stripe are in
-**[DEPLOYMENT.md](./DEPLOYMENT.md)**.
+**[DEPLOYMENT.md](./DEPLOYMENT.md)**. Before going live, walk
+**[LAUNCH_CHECKLIST.md](./LAUNCH_CHECKLIST.md)** — the full pre-launch
+audit: verified security posture (automated suite in
+`backend/tests/test_security.py`), legal coverage, measured capacity
+(~55× headroom over 1,000 users/hour), SEO verification, and the go-live
+sequence.
 
 ## SEO, AEO & GEO
 

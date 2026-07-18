@@ -169,29 +169,31 @@ async def admin_threads(
         query = query.eq("status", status)
     threads = query.execute().data
 
-    # Attach requester email + unread count per thread.
-    for thread in threads:
-        profile = (
-            db.table("profiles")
-            .select("email, tier")
-            .eq("id", thread["user_id"])
-            .limit(1)
+    # Attach requester email + unread counts in two batched queries (no N+1).
+    if threads:
+        user_ids = list({thread["user_id"] for thread in threads})
+        profiles = (
+            db.table("profiles").select("id, email, tier").in_("id", user_ids).execute().data
+        )
+        profile_map = {profile["id"]: profile for profile in profiles}
+        thread_ids = [thread["id"] for thread in threads]
+        unread_rows = (
+            db.table("support_messages")
+            .select("thread_id")
+            .in_("thread_id", thread_ids)
+            .eq("sender", "user")
+            .is_("read_at", "null")
             .execute()
             .data
         )
-        thread["email"] = profile[0]["email"] if profile else None
-        thread["tier"] = profile[0]["tier"] if profile else "free"
-        thread["unread"] = (
-            db.table("support_messages")
-            .select("id", count="exact")
-            .eq("thread_id", thread["id"])
-            .eq("sender", "user")
-            .is_("read_at", "null")
-            .limit(1)
-            .execute()
-            .count
-            or 0
-        )
+        unread_counts: dict[str, int] = {}
+        for row in unread_rows:
+            unread_counts[row["thread_id"]] = unread_counts.get(row["thread_id"], 0) + 1
+        for thread in threads:
+            profile = profile_map.get(thread["user_id"], {})
+            thread["email"] = profile.get("email")
+            thread["tier"] = profile.get("tier", "free")
+            thread["unread"] = unread_counts.get(thread["id"], 0)
     return {"items": threads}
 
 

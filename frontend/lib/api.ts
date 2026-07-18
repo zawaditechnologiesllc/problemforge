@@ -135,6 +135,10 @@ export function getSaved() {
   return request<{ items: BlueprintSummary[] }>("/api/v1/account/saved");
 }
 
+export function deleteAccount() {
+  return request<{ deleted: boolean }>("/api/v1/account", { method: "DELETE" });
+}
+
 export function createCheckout(plan: "builder" | "pro" | "enterprise") {
   return request<{ url: string }>("/api/v1/billing/checkout", {
     method: "POST",

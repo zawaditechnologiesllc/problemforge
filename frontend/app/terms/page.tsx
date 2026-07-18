@@ -122,7 +122,41 @@ export default async function TermsPage() {
         </p>
       </Section>
 
-      <Section heading="10. Changes">
+      <Section heading="10. Copyright and IP complaints">
+        <p>
+          We respect intellectual property rights and expect the same of our
+          users. If you believe content on {SITE_NAME} infringes your
+          copyright or other IP rights, send a notice to {contact} including:
+          (a) identification of the work claimed to be infringed, (b) the URL
+          of the material on our site, (c) your contact information, (d) a
+          good-faith statement that the use is not authorized, and (e) a
+          statement, under penalty of perjury, that the notice is accurate and
+          you are authorized to act for the rights holder. We review notices
+          promptly, remove or disable access to material where appropriate,
+          and may terminate repeat infringers&apos; accounts. If your content
+          was removed by mistake, you may submit a counter-notice with
+          equivalent detail.
+        </p>
+      </Section>
+
+      <Section heading="11. Governing law and disputes">
+        <p>
+          These Terms are governed by the laws of the jurisdiction in which{" "}
+          {OPERATOR_NAME} is organized, without regard to conflict-of-law
+          rules. Before filing any claim, you agree to first contact us at{" "}
+          {contact} and attempt in good faith to resolve the dispute
+          informally for 30 days. Any claim that cannot be resolved informally
+          shall be brought in the courts located in the jurisdiction where{" "}
+          {OPERATOR_NAME} is organized, and each party consents to their
+          jurisdiction. To the extent permitted by law, claims must be brought
+          individually and not as part of a class or representative action,
+          and within one year of the events giving rise to them. Nothing in
+          this section limits rights that consumer-protection law grants you
+          in your country of residence that cannot be waived by contract.
+        </p>
+      </Section>
+
+      <Section heading="12. Changes">
         <p>
           We may update these Terms. Material changes will be announced on the
           site or by email at least 14 days before they take effect; continued
@@ -130,7 +164,7 @@ export default async function TermsPage() {
         </p>
       </Section>
 
-      <Section heading="11. Contact">
+      <Section heading="13. Contact">
         <p>
           Questions about these Terms: {contact}.
         </p>

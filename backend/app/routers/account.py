@@ -4,10 +4,12 @@ import hashlib
 import secrets
 from datetime import datetime, timezone
 
+import stripe
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from ..auth import current_user_required
+from ..config import settings
 from ..db import get_db
 from ..tiers import tier_config
 
@@ -41,6 +43,32 @@ async def me(user: dict = Depends(current_user_required)):
             "priority_support": limits["priority_support"],
         },
     }
+
+
+@router.delete("")
+async def delete_account(user: dict = Depends(current_user_required)):
+    """Self-serve account deletion (GDPR/CCPA right to erasure).
+
+    Cancels any active Stripe subscription first so billing stops, then
+    deletes the auth user — profiles and all child rows cascade away.
+    Stripe invoices are retained by Stripe for legal/accounting reasons,
+    as disclosed in the Privacy Policy.
+    """
+    profile = user["profile"]
+    if settings.stripe_secret_key and profile.get("stripe_subscription_id"):
+        try:
+            stripe.api_key = settings.stripe_secret_key
+            stripe.Subscription.cancel(profile["stripe_subscription_id"])
+        except Exception:
+            pass  # subscription may already be cancelled; deletion proceeds
+    try:
+        get_db().auth.admin.delete_user(user["user_id"])
+    except Exception:
+        raise HTTPException(
+            status_code=500,
+            detail="Could not delete the account automatically — contact support and we will remove it within 30 days.",
+        )
+    return {"deleted": True}
 
 
 @router.get("/saved")

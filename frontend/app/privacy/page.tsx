@@ -89,9 +89,11 @@ export default async function PrivacyPage() {
         <p>
           Depending on your jurisdiction (including under GDPR and CCPA), you
           may have rights to access, correct, export, or delete your personal
-          data, and to object to or restrict certain processing. Email{" "}
-          {contact} and we will respond within 30 days. We do not sell
-          personal data.
+          data, and to object to or restrict certain processing. You can
+          delete your account and its data yourself at any time from Account
+          → Billing → Delete account — active subscriptions are cancelled as
+          part of deletion. For any other request, email {contact} and we
+          will respond within 30 days. We do not sell personal data.
         </p>
       </Section>
 
